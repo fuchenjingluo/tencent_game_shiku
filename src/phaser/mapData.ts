@@ -44,7 +44,7 @@ export const CORRIDORS: CorridorConfig[] = [
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const INTERACT_POINTS: InteractPointConfig[] = [
-  { id: 'director',         type: 'npc',       name: '文保主任',     roomId: 'main-hall',      offsetX: 0,  offsetY: -2 },
+  { id: 'director',         type: 'npc',       name: '文保主任',     roomId: 'main-hall',      offsetX: 4,  offsetY: 4 },
   // ── 任务交互点：offset 故意避开房间中心（NPC站的位置）────
   { id: 'mural-monitor',    type: 'monitor',   name: '壁画监测点',   roomId: 'mural-room',     offsetX: -7, offsetY: -5 },
   { id: 'rear-humidity',    type: 'monitor',   name: '后室湿度点',   roomId: 'rear-cave',      offsetX: -10, offsetY: 4 },

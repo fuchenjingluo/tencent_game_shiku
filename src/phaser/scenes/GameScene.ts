@@ -14,7 +14,7 @@ import { TASKS, NPC_CONFIGS, POINT_TASK_MAP, SIDE_QUESTS, type SideQuest } from 
 import { getRiskLevel, rollRiskEvent, applyRiskDeltas } from '../../data/riskSystem'
 import type { GameStats, ActiveTask, GameFlags, RiskEvent, InteractPointConfig, Objective } from '../../types'
 import { playStep, playAmbientDrip, playRiskAlert } from '../../audio/audioManager'
-import { TouristManager } from '../TouristNPC'
+import { TouristManager, ObstacleData } from '../TouristNPC'
 
 const INTERACT_RADIUS = 40
 const VIEW_W = 960
@@ -78,6 +78,7 @@ export class GameScene extends Phaser.Scene {
   private styleStreak = 0
   // ── 游客系统 ──
   private touristManager!: TouristManager
+  private obstacleDataList: ObstacleData[] = []
   // ── P2: 支线任务 ──
   private completedSideQuests: Set<string> = new Set()
   private activeSideQuest: string | null = null
@@ -108,6 +109,8 @@ export class GameScene extends Phaser.Scene {
     this.setupRoomLabels()
     this.setupBusListeners()
     this.setupTouristSystem()
+    // 在所有障碍物放置完毕后，将障碍物位置传给游客系统避让
+    this.touristManager.setObstacles(this.obstacleDataList)
     this.startPlayerBounce()
 
     // 方向箭头图层（屏幕空间，不跟随摄像机）
@@ -294,6 +297,13 @@ export class GameScene extends Phaser.Scene {
     body.setVisible(false)
     body.setDisplaySize(img.width * scale, img.height * scale)
     body.refreshBody()
+
+    // 记录障碍物位置供游客NPC避让
+    this.obstacleDataList.push({
+      x, y,
+      hw: (img.width * scale) / 2,
+      hh: (img.height * scale) / 2,
+    })
   }
 
   private placeRoomObstacles() {
@@ -365,10 +375,11 @@ export class GameScene extends Phaser.Scene {
     const cx = (r.x + r.w / 2) * TILE_SIZE
     const cy = (r.y + r.h / 2) * TILE_SIZE
 
-    // 石笋阵 — 散开分布，形成迷宫感
-    const stalagOffsets = [
-      [-18, -22], [14, -28], [-22, 2],
-      [20, -4], [-8, 16], [24, 18],
+    // 石笋阵 — 均匀散布，形成迷宫感（左右上下平衡分布）
+    const stalagOffsets: [number, number][] = [
+      [-40, -36], [20, -44], [44, -20],   // 上排：左中右
+      [-50, 4],   [0, 8],    [36, -8],     // 中排：左中右
+      [-32, 32],  [24, 36],  [48, 20],     // 下排：左中右
     ]
     stalagOffsets.forEach(([ox, oy]) => {
       this.spawnObstacle(cx + ox, cy + oy, 'obj_stalagmite', 0.9)
@@ -401,14 +412,18 @@ export class GameScene extends Phaser.Scene {
     const cx = (r.x + r.w / 2) * TILE_SIZE
     const cy = (r.y + r.h / 2) * TILE_SIZE
 
-    // 监测仪器 ×3（靠后墙排列）
-    this.spawnObstacle(cx - 18, cy - 24, 'obj_monitor', 0.85)
-    this.spawnObstacle(cx, cy - 26, 'obj_monitor', 0.85)
-    this.spawnObstacle(cx + 18, cy - 24, 'obj_monitor', 0.85)
+    // 后墙：3台监测仪器（中央大、两侧小，视觉差异化）
+    this.spawnObstacle(cx - 20, cy - 24, 'obj_monitor', 0.75)
+    this.spawnObstacle(cx, cy - 26, 'obj_monitor', 1.0)
+    this.spawnObstacle(cx + 20, cy - 24, 'obj_monitor', 0.75)
 
-    // 侧面仪器
-    this.spawnObstacle(cx - 44, cy + 8, 'obj_monitor', 0.8)
-    this.spawnObstacle(cx + 44, cy + 8, 'obj_monitor', 0.8)
+    // 侧面：工作台（用供桌模拟操作台）
+    this.spawnObstacle(cx - 44, cy + 6, 'obj_altar', 0.7)
+    this.spawnObstacle(cx + 44, cy + 6, 'obj_altar', 0.7)
+
+    // 角落石柱
+    this.spawnObstacle(cx - 56, cy - 20, 'obj_pillar', 0.6)
+    this.spawnObstacle(cx + 56, cy - 20, 'obj_pillar', 0.6)
   }
 
   private placePowerRoomObstacles() {
@@ -416,12 +431,21 @@ export class GameScene extends Phaser.Scene {
     const cx = (r.x + r.w / 2) * TILE_SIZE
     const cy = (r.y + r.h / 2) * TILE_SIZE
 
-    // 大型监测仪器 ×2
-    this.spawnObstacle(cx - 16, cy - 16, 'obj_monitor', 0.9)
-    this.spawnObstacle(cx + 16, cy - 16, 'obj_monitor', 0.9)
+    // 后墙：大型监测/配电仪器 ×3（模拟配电柜排列）
+    this.spawnObstacle(cx - 28, cy - 28, 'obj_monitor', 1.0)
+    this.spawnObstacle(cx, cy - 30, 'obj_monitor', 1.0)
+    this.spawnObstacle(cx + 28, cy - 28, 'obj_monitor', 1.0)
 
-    // 石柱支撑
-    this.spawnObstacle(cx, cy + 12, 'obj_pillar', 0.8)
+    // 中部：2台副仪器（模拟变压器/配电箱）
+    this.spawnObstacle(cx - 40, cy + 2, 'obj_monitor', 0.8)
+    this.spawnObstacle(cx + 40, cy + 2, 'obj_monitor', 0.8)
+
+    // 角落石柱（支撑结构）
+    this.spawnObstacle(cx - 52, cy - 24, 'obj_pillar', 0.7)
+    this.spawnObstacle(cx + 52, cy - 24, 'obj_pillar', 0.7)
+
+    // 底部石柱
+    this.spawnObstacle(cx, cy + 32, 'obj_pillar', 0.7)
   }
 
   private placeArchiveRoomObstacles() {
@@ -429,14 +453,14 @@ export class GameScene extends Phaser.Scene {
     const cx = (r.x + r.w / 2) * TILE_SIZE
     const cy = (r.y + r.h / 2) * TILE_SIZE
 
-    // 中央大供桌（阅读/工作台）
-    this.spawnObstacle(cx, cy - 4, 'obj_altar', 0.85)
+    // 中央数字终端/工作台（替代供桌 — 档案室应以科技设备为主）
+    this.spawnObstacle(cx, cy - 4, 'obj_monitor', 1.0)
 
-    // 监测仪器 ×2
+    // 侧方数据终端 ×2
     this.spawnObstacle(cx - 32, cy - 4, 'obj_monitor', 0.8)
     this.spawnObstacle(cx + 32, cy - 4, 'obj_monitor', 0.8)
 
-    // 四角石柱
+    // 四角石柱（建筑结构支撑）
     const corners: [number, number][] = [[-48, -28], [48, -28], [-48, 28], [48, 28]]
     corners.forEach(([ox, oy]) => {
       this.spawnObstacle(cx + ox, cy + oy, 'obj_pillar', 0.7)
@@ -488,11 +512,11 @@ export class GameScene extends Phaser.Scene {
 
     // 每个房间内的偏移量（避开障碍物）
     const offsets: Record<string, [number, number]> = {
-      task1_npc: [0, -16],       // 张主任 @ 壁画区 — 后墙（避开中央供桌）
+      task1_npc: [-36, 24],      // 张主任 @ 壁画区 — 左下区（远离后墙佛像+石碑+石柱）
       task2_npc: [-28, 18],      // 李工   @ 后室暗窟 — 左下角（避开石笋阵）
-      task3_npc: [-24, -8],      // 王巡察 @ 窟前栈道
-      task4_npc: [20, 4],        // 陈工   @ 供电区
-      task5_npc: [0, 28],        // 林院长 @ 中心窟室 — 中央底部（避开大佛+供桌+石柱）
+      task3_npc: [0, 28],        // 王巡察 @ 窟前栈道 — 下部中央（远离大门+天王+石柱）
+      task4_npc: [28, 28],       // 陈工   @ 供电区 — 右下角（远离配电柜+仪器）
+      task5_npc: [0, 48],        // 林院长 @ 中心窟室 — 房间底部（远离大佛+供桌+石柱）
     }
 
     Object.entries(npcRoomMap).forEach(([key, roomId]) => {
@@ -525,7 +549,7 @@ export class GameScene extends Phaser.Scene {
       const pos = getInteractPosition(pt.id)
       const isHidden = pt.type === 'hidden'
       const spr = this.add.sprite(pos.x, pos.y, isHidden ? 'particle' : 'interact_point')
-      spr.setDepth(8)
+      spr.setDepth(Math.floor(pos.y / 28))
       spr.setData('type', pt.type)
       spr.setData('name', pt.name)
       // 隐藏点用闪烁效果替代浮动

@@ -20,6 +20,39 @@ interface RoomNode {
   }[]
 }
 
+// ─── 房间出口坐标（房间→走廊的入口点，确保游客从正确方向离开房间） ────
+// 定义为"房间边缘内侧 0.5~1 格"，刚好在进入走廊之前
+const ROOM_EXIT: Record<string, Record<string, { x: number; y: number }>> = {
+  'gate-room': {
+    'main-hall':    { x: 50 * TILE_SIZE, y: 51.5 * TILE_SIZE },    // 顶部出口 → corridor 7
+    'archive-room': { x: 39.5 * TILE_SIZE, y: 56.5 * TILE_SIZE },  // 左侧出口 → corridor 8
+  },
+  'main-hall': {
+    'gate-room':      { x: 50 * TILE_SIZE, y: 43.5 * TILE_SIZE },   // 底部出口 → corridor 7
+    'mural-room':     { x: 42 * TILE_SIZE, y: 27.5 * TILE_SIZE },   // 左上出口 → corridor 2
+    'rear-cave':      { x: 72 * TILE_SIZE, y: 27.5 * TILE_SIZE },   // 右上出口 → corridor 3
+    'equipment-room': { x: 63 * TILE_SIZE, y: 33.5 * TILE_SIZE },   // 右侧出口 → corridor 5
+  },
+  'mural-room': {
+    'main-hall':    { x: 24.5 * TILE_SIZE, y: 15.5 * TILE_SIZE },   // 右下出口 → corridor 1
+    'archive-room': { x: 14.5 * TILE_SIZE, y: 19.5 * TILE_SIZE },   // 左下出口 → corridor 9
+  },
+  'rear-cave': {
+    'main-hall': { x: 70.5 * TILE_SIZE, y: 18.5 * TILE_SIZE },      // 底部出口 → corridor 3
+  },
+  'equipment-room': {
+    'main-hall':  { x: 62 * TILE_SIZE, y: 33.5 * TILE_SIZE },        // 左侧出口 → corridor 5
+    'power-room': { x: 75 * TILE_SIZE, y: 41.5 * TILE_SIZE },        // 底部出口 → corridor 6
+  },
+  'power-room': {
+    'equipment-room': { x: 75 * TILE_SIZE, y: 48.5 * TILE_SIZE },    // 顶部出口 → corridor 6
+  },
+  'archive-room': {
+    'gate-room':  { x: 28.5 * TILE_SIZE, y: 56.5 * TILE_SIZE },      // 右上出口 → corridor 8
+    'mural-room': { x: 14.5 * TILE_SIZE, y: 45.5 * TILE_SIZE },      // 左上出口 → corridor 9
+  },
+}
+
 /** 预计算所有房间的连通图 + 走廊中继坐标 */
 function buildRoomGraph(): Map<string, RoomNode> {
   const graph = new Map<string, RoomNode>()
@@ -114,6 +147,15 @@ function buildRoomGraph(): Map<string, RoomNode> {
   return graph
 }
 
+// ─── 障碍物数据（由 GameScene 传入，用于游客避让） ────────────────────────
+
+export interface ObstacleData {
+  x: number       // 障碍物中心像素 x
+  y: number       // 障碍物中心像素 y
+  hw: number      // 半宽（像素）
+  hh: number      // 半高（像素）
+}
+
 // ─── 游客实例 ──────────────────────────────────────────────────────────────
 
 interface Tourist {
@@ -133,6 +175,7 @@ interface Tourist {
   maxRooms: number           // 参观上限（到达后返回 gate-room 离场）
   previousRoomId: string     // 上一个房间（避免立即折返）
   headingHome: boolean       // 是否正在返回 gate-room
+  visitedRooms: Set<string>  // 已参观过的房间（避免重复）
 }
 
 // ─── 随机事件定义 ──────────────────────────────────────────────────────────
@@ -230,6 +273,7 @@ export class TouristManager {
   private eventTimer = 0
   private eventResolved = false
   private eventCooldown = 0   // 事件冷却，防止连续触发
+  private obstacles: ObstacleData[] = []  // 障碍物数据（用于避让）
 
   onEventTrigger: ((event: TouristEvent) => void) | null = null
   onEventResolve: ((event: TouristEvent, success: boolean, choiceDeltas?: Partial<Record<string, number>>) => void) | null = null
@@ -237,6 +281,11 @@ export class TouristManager {
   constructor(scene: Phaser.Scene, mapData: Uint8Array) {
     this.scene = scene
     this.mapData = mapData
+  }
+
+  /** 接收障碍物位置数据（由 GameScene.placeRoomObstacles 后传入） */
+  setObstacles(data: ObstacleData[]): void {
+    this.obstacles = data
   }
 
   // ═════════════════════════════════════════════════════════════════════
@@ -318,10 +367,11 @@ export class TouristManager {
     this.ensureGraph()
     const gateNode = this.roomGraph.get('gate-room')!
     const variant = Math.floor(Math.random() * 3)
-    const ox = (Math.random() - 0.5) * 24
-    const oy = (Math.random() - 0.5) * 16
-    const sx = gateNode.x + ox
-    const sy = gateNode.y + oy
+
+    // ★ 出生在 gate-room 顶部安全区（row 52，y≈832~848，在所有障碍物上方）
+    // gate-room 障碍物分布在 y=888~944（gate、guardians、pillars），安全区在 y=820~860
+    const sx = gateNode.x + (Math.random() - 0.5) * 48   // 776 ~ 824
+    const sy = 840 + (Math.random() - 0.5) * 16          // 832 ~ 848
 
     const spr = this.scene.add.sprite(sx, sy, 'player')
     spr.setDepth(Math.floor(sy / 28)).setScale(0.7).setAlpha(0)
@@ -337,8 +387,9 @@ export class TouristManager {
       targets: spr, alpha: 0.75, duration: 800, ease: 'Sine.easeIn',
     })
 
-    // 随机选第一个参观目标
-    const firstTarget = this.pickNextRoom('gate-room', 'gate-room')
+    // 随机选第一个参观目标（从全部窟室）
+    const visited = new Set<string>(['gate-room'])
+    const firstTarget = this.pickNextRoom('gate-room', 'gate-room', visited)
 
     const tourist: Tourist = {
       sprite: spr, nameLabel: label,
@@ -353,38 +404,81 @@ export class TouristManager {
       maxRooms: 3 + Math.floor(Math.random() * 3),  // 参观 3-5 间后离场
       previousRoomId: 'gate-room',
       headingHome: false,
+      visitedRooms: visited,
     }
     this.tourists.push(tourist)
   }
 
-  /** 从当前房间选下一个随机目标（排除当前和上一个，优先未去过的） */
-  private pickNextRoom(current: string, previous: string): string {
-    const node = this.roomGraph.get(current)
-    if (!node || node.neighbors.length === 0) return 'gate-room'
+  /** 从全部窟室中随机选下一个目标（非邻居，全图 BFS 可达） */
+  private pickNextRoom(current: string, previous: string, visited: Set<string>): string {
+    // ★ 全部可参观窟室（排除 gate-room 和当前所在）
+    const allRooms = [...this.roomGraph.keys()].filter(
+      id => id !== current && id !== previous && id !== 'gate-room'
+    )
 
-    const candidates = node.neighbors
-      .map((n) => n.targetRoomId)
-      .filter((id) => id !== previous)  // 不立即折返
+    if (allRooms.length === 0) return 'gate-room'
 
-    if (candidates.length === 0) return node.neighbors[0].targetRoomId
-    return candidates[Math.floor(Math.random() * candidates.length)]
+    // ★ 优先未参观过的房间
+    const unvisited = allRooms.filter(id => !visited.has(id))
+    const pool = unvisited.length > 0 ? unvisited : allRooms
+
+    return pool[Math.floor(Math.random() * pool.length)]
   }
 
-  /** 构建从房间 A 到房间 B 的路径（中间走廊中继点） */
-  private buildPath(fromId: string, toId: string): { x: number; y: number }[] {
-    const node = this.roomGraph.get(fromId)
-    if (!node) return [getRoomCenter(toId)]
-    const edge = node.neighbors.find((n) => n.targetRoomId === toId)
-    if (!edge) return [getRoomCenter(toId)]
+  /** BFS 搜索房间 A → B 的最短路径（返回房间 ID 序列，含起点和终点） */
+  private findRoomPath(fromId: string, toId: string): string[] {
+    if (fromId === toId) return [fromId]
 
-    // 终点是目标房间的中心 + 小偏移增加自然感
-    const dest = getRoomCenter(toId)
-    const endWp = {
-      x: dest.x + (Math.random() - 0.5) * 32,
-      y: dest.y + (Math.random() - 0.5) * 20,
+    const visited = new Set<string>([fromId])
+    const queue: { id: string; path: string[] }[] = [{ id: fromId, path: [fromId] }]
+
+    while (queue.length > 0) {
+      const { id, path } = queue.shift()!
+      const node = this.roomGraph.get(id)
+      if (!node) continue
+
+      for (const neighbor of node.neighbors) {
+        if (visited.has(neighbor.targetRoomId)) continue
+        const newPath = [...path, neighbor.targetRoomId]
+        if (neighbor.targetRoomId === toId) return newPath
+        visited.add(neighbor.targetRoomId)
+        queue.push({ id: neighbor.targetRoomId, path: newPath })
+      }
     }
 
-    return [...edge.waypoints, endWp]
+    return [fromId, toId] // fallback（不会发生）
+  }
+
+  /** 构建从房间 A 到房间 B 的路径（支持跨房间 BFS + 每段走廊中继） */
+  private buildPath(fromId: string, toId: string): { x: number; y: number }[] {
+    // ★ BFS 找房间序列
+    const roomPath = this.findRoomPath(fromId, toId)
+    const waypoints: { x: number; y: number }[] = []
+
+    // ★ 逐段拼接：出口路点 → 走廊中继 → … → 最终目标
+    for (let i = 0; i < roomPath.length - 1; i++) {
+      const a = roomPath[i]
+      const b = roomPath[i + 1]
+
+      // 添加房间 A → B 的出口路点
+      const exitWp = ROOM_EXIT[a]?.[b]
+      if (exitWp) {
+        waypoints.push({ x: exitWp.x + (Math.random() - 0.5) * 12, y: exitWp.y + (Math.random() - 0.5) * 8 })
+      }
+
+      // 添加走廊中继点
+      const edge = this.roomGraph.get(a)?.neighbors.find(n => n.targetRoomId === b)
+      if (edge) waypoints.push(...edge.waypoints)
+    }
+
+    // ★ 终点：目标房间中心 + 安全偏移
+    const dest = getRoomCenter(toId)
+    const endWp = toId === 'gate-room'
+      ? { x: dest.x + (Math.random() - 0.5) * 48, y: 840 + (Math.random() - 0.5) * 16 }
+      : this.findSafeWaypoint(dest.x, dest.y, 48, 32)
+
+    waypoints.push(endWp)
+    return waypoints
   }
 
   // ═════════════════════════════════════════════════════════════════════
@@ -430,6 +524,9 @@ export class TouristManager {
       t.sprite.setDepth(Math.floor(t.sprite.y / 28))
       t.nameLabel.setDepth(Math.floor(t.sprite.y / 28) + 0.5)
 
+      // ★ 脱困：如果卡在障碍物内，强制推出
+      this.unstuckFromObstacles(t)
+
       // 没有路点 → 生成新目标
       if (t.waypoints.length === 0 || t.wpIndex >= t.waypoints.length) {
         this.onTouristReachDestination(t)
@@ -463,10 +560,35 @@ export class TouristManager {
     })
   }
 
+  /** 脱困：如果游客在障碍物内，沿最近的方向推出 */
+  private unstuckFromObstacles(t: Tourist): void {
+    const touristR = 8
+    for (const obs of this.obstacles) {
+      if (!this.collidesWithObstacle(t.sprite.x, t.sprite.y, touristR, obs)) continue
+
+      // 游客在这个障碍物内部 — 找最短推出方向
+      const leftDist = (t.sprite.x + touristR) - (obs.x - obs.hw)
+      const rightDist = (obs.x + obs.hw) - (t.sprite.x - touristR)
+      const topDist = (t.sprite.y + touristR) - (obs.y - obs.hh)
+      const bottomDist = (obs.y + obs.hh) - (t.sprite.y - touristR)
+
+      const minDist = Math.min(leftDist, rightDist, topDist, bottomDist)
+      if (minDist === leftDist) t.sprite.x = obs.x - obs.hw - touristR - 1
+      else if (minDist === rightDist) t.sprite.x = obs.x + obs.hw + touristR + 1
+      else if (minDist === topDist) t.sprite.y = obs.y - obs.hh - touristR - 1
+      else t.sprite.y = obs.y + obs.hh + touristR + 1
+
+      t.nameLabel.setPosition(t.sprite.x, t.sprite.y - 16)
+      // 只处理第一个碰撞的障碍物（避免连续推出太远）
+      return
+    }
+  }
+
   /** reach 最后一个 waypoint → 进入新房间 */
   private onTouristReachDestination(t: Tourist): void {
     t.currentRoomId = t.targetRoomId
     t.roomsVisited++
+    t.visitedRooms.add(t.targetRoomId)   // ★ 标记已参观
     t.arrived = true
     t.pauseUntil = this.scene.time.now + 2000 + Math.random() * 4000
 
@@ -483,23 +605,25 @@ export class TouristManager {
     // 已回家 → 会在 despawnDone 中清理
     if (t.headingHome && t.currentRoomId === 'gate-room') return
 
-    // 选下一个随机窟室
-    const next = this.pickNextRoom(t.currentRoomId, t.previousRoomId)
+    // ★ 选下一个随机窟室（全石窟随机，优先未参观）
+    const next = this.pickNextRoom(t.currentRoomId, t.previousRoomId, t.visitedRooms)
     t.previousRoomId = t.currentRoomId
     t.targetRoomId = next
     t.waypoints = this.buildPath(t.currentRoomId, next)
     t.wpIndex = 0
   }
 
-  /** steering: 路点引力 + 墙壁排斥 */
+  /** steering: 路点引力 + 墙壁排斥 + 障碍物排斥 + 垂直滑动 */
   private steerToward(t: Tourist, dx: number, dy: number, dist: number, dt: number): void {
     const toWpX = dx / dist
     const toWpY = dy / dist
+    const tpx = t.sprite.x, tpy = t.sprite.y
+    const touristR = 8
 
-    // 墙壁排斥力
+    // ── 墙壁排斥力（瓦片级）──
     let repelX = 0, repelY = 0
-    const tc = Math.floor(t.sprite.x / TILE_SIZE)
-    const tr = Math.floor(t.sprite.y / TILE_SIZE)
+    const tc = Math.floor(tpx / TILE_SIZE)
+    const tr = Math.floor(tpy / TILE_SIZE)
     const scanR = 3
 
     for (let dr = -scanR; dr <= scanR; dr++) {
@@ -517,36 +641,172 @@ export class TouristManager {
       }
     }
 
+    // ── 障碍物排斥力 ──
+    let closestObsDist = Infinity
+    for (const obs of this.obstacles) {
+      const d = this.distToObstacle(tpx, tpy, obs)
+      if (d < closestObsDist) closestObsDist = d
+
+      const closestX = Math.max(obs.x - obs.hw, Math.min(tpx, obs.x + obs.hw))
+      const closestY = Math.max(obs.y - obs.hh, Math.min(tpy, obs.y + obs.hh))
+      const ddx = tpx - closestX
+      const ddy = tpy - closestY
+      const d2 = Math.sqrt(ddx * ddx + ddy * ddy)
+
+      const repelRange = obs.hw + obs.hh + 16
+      if (d2 < repelRange) {
+        if (d2 < 1) {
+          const toCenter = Math.sqrt((tpx - obs.x) ** 2 + (tpy - obs.y) ** 2)
+          if (toCenter > 0.1) {
+            repelX += (tpx - obs.x) / toCenter * 5
+            repelY += (tpy - obs.y) / toCenter * 5
+          }
+        } else {
+          const strength = (repelRange - d2) / repelRange
+          repelX += (ddx / d2) * strength * 4
+          repelY += (ddy / d2) * strength * 4
+        }
+      }
+    }
+
+    // ── 动态混合权重：越靠近障碍物，排斥力占比越大 ──
+    const obsInfluence = closestObsDist < 70 ? Math.max(0, 1 - closestObsDist / 70) : 0
+    const repelWeight = 0.2 + obsInfluence * 0.7   // 0.2~0.9
+    const wpWeight = 1 - repelWeight                // 0.8~0.1
+
     const repelMag = Math.sqrt(repelX * repelX + repelY * repelY)
     if (repelMag > 0.001) { repelX /= repelMag; repelY /= repelMag }
 
-    let dirX = toWpX * 0.7 + repelX * 0.3
-    let dirY = toWpY * 0.7 + repelY * 0.3
+    let dirX = toWpX * wpWeight + repelX * repelWeight
+    let dirY = toWpY * wpWeight + repelY * repelWeight
     const dirMag = Math.sqrt(dirX * dirX + dirY * dirY)
     if (dirMag > 0.001) { dirX /= dirMag; dirY /= dirMag }
 
     const moveX = dirX * t.speed * dt
     const moveY = dirY * t.speed * dt
-    const nextX = t.sprite.x + moveX
-    const nextY = t.sprite.y + moveY
+    let nextX = tpx + moveX
+    let nextY = tpy + moveY
 
-    // 安全校验
+    // ── 墙壁碰撞 ──
     const ncol = Math.floor(nextX / TILE_SIZE)
     const nrow = Math.floor(nextY / TILE_SIZE)
+    let canMoveX = true, canMoveY = true
     if (ncol >= 0 && ncol < MAP_COLS && nrow >= 0 && nrow < MAP_ROWS) {
-      const tileX = this.mapData[Math.floor(t.sprite.y / TILE_SIZE) * MAP_COLS + ncol]
-      const tileY = this.mapData[nrow * MAP_COLS + Math.floor(t.sprite.x / TILE_SIZE)]
-      if (this.mapData[nrow * MAP_COLS + ncol] !== 2) {
-        t.sprite.x = nextX; t.sprite.y = nextY
-      } else {
-        if (tileX !== 2) t.sprite.x = nextX
-        if (tileY !== 2) t.sprite.y = nextY
+      if (this.mapData[nrow * MAP_COLS + ncol] === 2) {
+        const tileX = this.mapData[Math.floor(tpy / TILE_SIZE) * MAP_COLS + ncol]
+        const tileY = this.mapData[nrow * MAP_COLS + Math.floor(tpx / TILE_SIZE)]
+        if (tileX === 2) canMoveX = false
+        if (tileY === 2) canMoveY = false
       }
     }
+
+    // ── 障碍物碰撞 + 垂直滑动 ──
+    const blockedByObstacle = (testX: number, testY: number): boolean => {
+      for (const obs of this.obstacles) {
+        if (this.collidesWithObstacle(testX, testY, touristR, obs)) return true
+      }
+      return false
+    }
+
+    if (canMoveX && blockedByObstacle(nextX, tpy)) canMoveX = false
+    if (canMoveY && blockedByObstacle(tpx, nextY)) canMoveY = false
+
+    // 如果被障碍物双向阻挡，尝试垂直滑动绕过
+    if (!canMoveX && !canMoveY) {
+      // 尝试4个垂直/对角线方向
+      const slides = [
+        [dirY, -dirX],           // 右垂直
+        [-dirY, dirX],           // 左垂直
+        [dirX * 0.7 + dirY * 0.7, dirY * 0.7 - dirX * 0.7],
+        [dirX * 0.7 - dirY * 0.7, dirY * 0.7 + dirX * 0.7],
+      ]
+      let found = false
+      for (const [sdX, sdY] of slides) {
+        const sm = Math.sqrt(sdX * sdX + sdY * sdY)
+        if (sm < 0.001) continue
+        const sNX = tpx + (sdX / sm) * t.speed * dt
+        const sNY = tpy + (sdY / sm) * t.speed * dt
+        if (!blockedByObstacle(sNX, tpy) && !blockedByObstacle(tpx, sNY)) {
+          nextX = sNX; nextY = sNY
+          canMoveX = true; canMoveY = true
+          found = true
+          break
+        }
+      }
+      // 如果垂直也不行，尝试反向（直接后退）
+      if (!found) {
+        const backX = tpx - toWpX * t.speed * dt
+        const backY = tpy - toWpY * t.speed * dt
+        if (!blockedByObstacle(backX, backY)) {
+          nextX = backX; nextY = backY
+          canMoveX = true; canMoveY = true
+        }
+      }
+    }
+
+    if (canMoveX) t.sprite.x = nextX
+    if (canMoveY) t.sprite.y = nextY
 
     t.nameLabel.setPosition(t.sprite.x, t.sprite.y - 16)
     if (dirX < -0.1) t.sprite.setFlipX(true)
     else if (dirX > 0.1) t.sprite.setFlipX(false)
+  }
+
+  /** 圆（游客） vs 矩形（障碍物）碰撞检测 */
+  private collidesWithObstacle(cx: number, cy: number, r: number, obs: ObstacleData): boolean {
+    const closestX = Math.max(obs.x - obs.hw, Math.min(cx, obs.x + obs.hw))
+    const closestY = Math.max(obs.y - obs.hh, Math.min(cy, obs.y + obs.hh))
+    const dx = cx - closestX
+    const dy = cy - closestY
+    return (dx * dx + dy * dy) < (r * r)
+  }
+
+  /** 游客到障碍物的最短距离（用于动态权重计算） */
+  private distToObstacle(px: number, py: number, obs: ObstacleData): number {
+    const closestX = Math.max(obs.x - obs.hw, Math.min(px, obs.x + obs.hw))
+    const closestY = Math.max(obs.y - obs.hh, Math.min(py, obs.y + obs.hh))
+    const dx = px - closestX
+    const dy = py - closestY
+    return Math.sqrt(dx * dx + dy * dy)
+  }
+
+  /** 检测一个点是否在障碍物内（用于出生点和路点校验） */
+  private isInsideAnyObstacle(x: number, y: number, margin = 8): boolean {
+    for (const obs of this.obstacles) {
+      if (x > obs.x - obs.hw - margin && x < obs.x + obs.hw + margin &&
+          y > obs.y - obs.hh - margin && y < obs.y + obs.hh + margin) {
+        return true
+      }
+    }
+    return false
+  }
+
+  /** 在中心点附近找一个不与障碍物重叠的安全位置 */
+  private findSafePosition(cx: number, cy: number, range: number, isY = false): number {
+    const base = isY ? cy : cx
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const offset = (Math.random() - 0.5) * range * 2
+      const testX = isY ? cx : cx + offset
+      const testY = isY ? cy + offset : cy
+      if (!this.isInsideAnyObstacle(testX, testY, 10)) {
+        return isY ? testY : testX
+      }
+    }
+    // 全部失败 — 向下偏移（gate-room 出口在下方）
+    return isY ? base + range : base + (Math.random() - 0.5) * range
+  }
+
+  /** 在房间中心附近找一个安全路点 */
+  private findSafeWaypoint(cx: number, cy: number, rangeX: number, rangeY: number): { x: number; y: number } {
+    for (let attempt = 0; attempt < 15; attempt++) {
+      const x = cx + (Math.random() - 0.5) * rangeX * 2
+      const y = cy + (Math.random() - 0.5) * rangeY * 2
+      if (!this.isInsideAnyObstacle(x, y, 10)) {
+        return { x, y }
+      }
+    }
+    // 全部失败 — 用房间中心
+    return { x: cx, y: cy }
   }
 
   // ═════════════════════════════════════════════════════════════════════
