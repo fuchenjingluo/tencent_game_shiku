@@ -1,0 +1,152 @@
+/* ──────────────────────────────────────────────────────────────────────────
+ * 石窟守护者 — 全局样式（对齐参考文件 CSS 变量）
+ * 敦煌石窟暖褐岩壁 · 暗色调 · 金色高亮
+ * ────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --ink: #15130e;
+  --paper-solid: #2a2216;
+  --line: #6e5b39;
+  --gold: #d7bd73;
+  --soft: #d8cca8;
+  --moss: #8fae78;
+  --stone: #3d3322;
+  --bg: #12110d;
+  --success: #8fae78;
+  --success-light: #c9dfa8;
+  --danger: #b05a4a;
+  --danger-light: #d98f72;
+  --neutral: #9f916d;
+  --gold-light: #f4e5bd;
+  --panel-bg: rgba(42, 34, 22, 0.92);
+  --pixel-border: 1px solid #6e5b39;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--soft);
+  font-family: 'Courier New', 'SimSun', 'NSimSun', monospace;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root-loader {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  transition: opacity 0.6s;
+}
+
+.loader-text {
+  font-size: 16px;
+  color: var(--gold);
+  letter-spacing: 4px;
+  margin-bottom: 20px;
+}
+
+.loader-bar-outer {
+  width: 220px;
+  height: 6px;
+  background: var(--stone);
+  border: var(--pixel-border);
+  overflow: hidden;
+}
+
+.loader-bar-inner {
+  height: 100%;
+  background: var(--gold);
+  transition: width 0.3s;
+}
+
+/* ── 石质面板 ── */
+
+.stone-panel {
+  background: var(--panel-bg);
+  border: var(--pixel-border);
+  padding: 16px;
+  position: relative;
+}
+
+.stone-panel::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border: 1px solid rgba(110, 91, 57, 0.3);
+  pointer-events: none;
+}
+
+/* ── 指标条 ── */
+
+.stat-bar-outer {
+  width: 100%;
+  height: 6px;
+  background: var(--stone);
+  border: var(--pixel-border);
+  overflow: hidden;
+}
+
+.stat-bar-inner {
+  height: 100%;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── 按钮 ── */
+
+.btn-gold {
+  background: transparent;
+  border: var(--pixel-border);
+  color: var(--gold);
+  padding: 8px 20px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-gold:hover {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.btn-danger {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger-light);
+  padding: 8px 20px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-danger:hover {
+  background: var(--danger);
+  color: var(--bg);
+}
+
+/* ── 滚动条 ── */
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--ink);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+}

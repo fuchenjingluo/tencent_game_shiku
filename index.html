@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="石窟守护者 — 数字文物保护模拟器。以数字保护管理员身份巡检石窟、记录数据、处置风险。" />
+    <meta name="theme-color" content="#12110d" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M16 2L4 8v8c0 7.7 5.1 14.9 12 16 6.9-1.1 12-8.3 12-16V8L16 2z' fill='%23d7bd73'/><path d='M16 5L7 9.5v6.5c0 6.2 4 12 9 13 5-1 9-6.8 9-13V9.5L16 5z' fill='%233d3322'/></svg>" />
+    <title>石窟守护者：数字文物保护模拟器</title>
+    <style>
+      body { margin: 0; background: #12110d; }
+      #root-loader {
+        position: fixed; inset: 0; display: flex;
+        flex-direction: column; align-items: center; justify-content: center;
+        background: #12110d; z-index: 9999; transition: opacity 0.6s;
+      }
+      #root-loader .brand {
+        font-family: 'Courier New', 'SimSun', monospace;
+        font-size: 20px; color: #d7bd73; letter-spacing: 6px;
+        margin-bottom: 12px;
+      }
+      #root-loader .sub {
+        font-family: 'Courier New', 'SimSun', monospace;
+        font-size: 10px; color: #6e5b39; letter-spacing: 3px;
+        margin-bottom: 28px;
+      }
+      #root-loader .bar-track {
+        width: 220px; height: 6px; background: #3d3322;
+        border: 1px solid #6e5b39; overflow: hidden;
+      }
+      #root-loader .bar-fill {
+        height: 100%; background: #d7bd73;
+        width: 0%; transition: width 0.3s;
+      }
+      #root-loader .tip {
+        font-family: 'Courier New', 'SimSun', monospace;
+        font-size: 8px; color: #3d3322;
+        margin-top: 16px; letter-spacing: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root-loader">
+      <div class="brand">石窟守护者</div>
+      <div class="sub">数字文物保护模拟器</div>
+      <div class="bar-track">
+        <div class="bar-fill" id="loader-bar"></div>
+      </div>
+      <div class="tip" id="loader-tip">加载纹理资源…</div>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
