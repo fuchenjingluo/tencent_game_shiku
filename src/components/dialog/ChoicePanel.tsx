@@ -209,6 +209,7 @@ export function ChoicePanelController({ onChoose, gameFlags, stats }: ChoicePane
 
   const handleDismiss = useCallback(() => {
     setState(null)
+    bus.emit('ui:lock-input', false)
     bus.emit('ui:choice-cancelled')
   }, [])
 
