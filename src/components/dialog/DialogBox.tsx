@@ -12,7 +12,7 @@ interface DialogBoxProps {
   onClose: () => void
 }
 
-function DialogBox({ lines, onClose }: DialogBoxProps) {
+function DialogBox({ lines, onClose, onDismiss }: DialogBoxProps & { onDismiss?: () => void }) {
   const [lineIdx, setLineIdx] = useState(0)
   const [charIdx, setCharIdx] = useState(0)
   const [displayed, setDisplayed] = useState('')
@@ -90,6 +90,29 @@ function DialogBox({ lines, onClose }: DialogBoxProps) {
           position: 'absolute', top: 0, left: 0, right: 0, height: 1,
           background: 'linear-gradient(90deg, transparent, rgba(215,189,115,0.4), transparent)',
         }} />
+
+        {/* 关闭按钮 — 始终可见，直接关闭不触发 onClose */}
+        {onDismiss && (
+          <motion.button
+            whileHover={{ scale: 1.15, background: 'rgba(217,143,114,0.25)' }}
+            whileTap={{ scale: 0.9 }}
+            onClick={(e) => { e.stopPropagation(); onDismiss() }}
+            style={{
+              position: 'absolute', top: 8, right: 10,
+              width: 26, height: 26,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 4,
+              color: '#8b7355',
+              fontSize: 14,
+              cursor: 'pointer',
+              fontFamily: 'monospace',
+              zIndex: 2,
+            }}
+            title="关闭弹窗（不接取任务）"
+          >✕</motion.button>
+        )}
 
         {/* 说话人 */}
         <div style={{
@@ -191,9 +214,14 @@ export function DialogController() {
     cb?.()
   }, [dialog])
 
+  const handleDismiss = useCallback(() => {
+    setDialog(null)
+    bus.emit('ui:dialog-closed')
+  }, [])
+
   return (
     <AnimatePresence>
-      {dialog && <DialogBox key="dialog" lines={dialog.lines} onClose={handleClose} />}
+      {dialog && <DialogBox key="dialog" lines={dialog.lines} onClose={handleClose} onDismiss={handleDismiss} />}
     </AnimatePresence>
   )
 }
