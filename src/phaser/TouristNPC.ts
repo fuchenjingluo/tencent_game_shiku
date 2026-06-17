@@ -531,7 +531,8 @@ export class TouristManager {
     })
   }
 
-  /** 脱困：如果游客在障碍物内，沿最近的方向推出（处理所有可能重叠的障碍物） */
+  /** 脱困：如果游客在障碍物内，沿最近的方向推出（处理所有可能重叠的障碍物）
+   *  推出后还要检查是否撞墙，撞墙则回滚到原位置 */
   private unstuckFromObstacles(t: Tourist): void {
     const touristR = 8
     // 循环处理，直到游客不再与任何障碍物碰撞
@@ -546,10 +547,23 @@ export class TouristManager {
         const bottomDist = (obs.y + obs.hh) - (t.sprite.y - touristR)
 
         const minDist = Math.min(leftDist, rightDist, topDist, bottomDist)
+        const oldX = t.sprite.x, oldY = t.sprite.y
         if (minDist === leftDist) t.sprite.x = obs.x - obs.hw - touristR - 2
         else if (minDist === rightDist) t.sprite.x = obs.x + obs.hw + touristR + 2
         else if (minDist === topDist) t.sprite.y = obs.y - obs.hh - touristR - 2
         else t.sprite.y = obs.y + obs.hh + touristR + 2
+
+        // ★ 推出后如果撞墙 → 回滚（宁可卡在障碍物边缘也不要穿墙）
+        if (this.isWallTile(t.sprite.x, t.sprite.y) ||
+            this.isWallTile(t.sprite.x + touristR, t.sprite.y) ||
+            this.isWallTile(t.sprite.x - touristR, t.sprite.y) ||
+            this.isWallTile(t.sprite.x, t.sprite.y + touristR) ||
+            this.isWallTile(t.sprite.x, t.sprite.y - touristR)) {
+          t.sprite.x = oldX
+          t.sprite.y = oldY
+          // 不再尝试这个方向，跳出循环
+          break
+        }
 
         pushed = true
       }
@@ -674,20 +688,21 @@ export class TouristManager {
     let nextX = tpx + moveX
     let nextY = tpy + moveY
 
-    // ── 墙壁碰撞 ──
-    const ncol = Math.floor(nextX / TILE_SIZE)
-    const nrow = Math.floor(nextY / TILE_SIZE)
-    let canMoveX = true, canMoveY = true
-    if (ncol >= 0 && ncol < MAP_COLS && nrow >= 0 && nrow < MAP_ROWS) {
-      if (this.mapData[nrow * MAP_COLS + ncol] === 2) {
-        const tileX = this.mapData[Math.floor(tpy / TILE_SIZE) * MAP_COLS + ncol]
-        const tileY = this.mapData[nrow * MAP_COLS + Math.floor(tpx / TILE_SIZE)]
-        if (tileX === 2) canMoveX = false
-        if (tileY === 2) canMoveY = false
-      }
+    // ── 墙壁碰撞（分轴独立检测 + 半径多点采样）──
+    // 游客半径 touristR，检测覆盖碰撞圆的 5 个点：中心 + 4 方向边缘
+    const hitsWall = (cx: number, cy: number): boolean => {
+      if (this.isWallTile(cx, cy)) return true
+      if (this.isWallTile(cx + touristR, cy)) return true
+      if (this.isWallTile(cx - touristR, cy)) return true
+      if (this.isWallTile(cx, cy + touristR)) return true
+      if (this.isWallTile(cx, cy - touristR)) return true
+      return false
     }
 
-    // ── 障碍物碰撞 + 垂直滑动 ──
+    let canMoveX = !hitsWall(nextX, tpy)
+    let canMoveY = !hitsWall(tpx, nextY)
+
+    // ── 障碍物碰撞 ──
     const blockedByObstacle = (testX: number, testY: number): boolean => {
       for (const obs of this.obstacles) {
         if (this.collidesWithObstacle(testX, testY, touristR, obs)) return true
@@ -714,19 +729,20 @@ export class TouristManager {
         const sNX = tpx + (sdX / sm) * t.speed * dt
         const sNY = tpy + (sdY / sm) * t.speed * dt
         // 优先尝试双轴同时移动
-        if (!blockedByObstacle(sNX, tpy) && !blockedByObstacle(tpx, sNY)) {
+        if (!blockedByObstacle(sNX, tpy) && !hitsWall(sNX, tpy) &&
+            !blockedByObstacle(tpx, sNY) && !hitsWall(tpx, sNY)) {
           nextX = sNX; nextY = sNY
           canMoveX = true; canMoveY = true
           found = true
           break
         }
         // 单轴滑动 — 至少能走一个方向
-        if (!blockedByObstacle(sNX, tpy) && !this.isWallTile(sNX, tpy)) {
+        if (!blockedByObstacle(sNX, tpy) && !hitsWall(sNX, tpy)) {
           nextX = sNX; canMoveX = true
           found = true
           break
         }
-        if (!blockedByObstacle(tpx, sNY) && !this.isWallTile(tpx, sNY)) {
+        if (!blockedByObstacle(tpx, sNY) && !hitsWall(tpx, sNY)) {
           nextY = sNY; canMoveY = true
           found = true
           break
@@ -736,7 +752,7 @@ export class TouristManager {
         // 全部失败 → 后退
         const backX = tpx - toWpX * t.speed * dt
         const backY = tpy - toWpY * t.speed * dt
-        if (!blockedByObstacle(backX, backY)) {
+        if (!blockedByObstacle(backX, backY) && !hitsWall(backX, backY)) {
           nextX = backX; nextY = backY
           canMoveX = true; canMoveY = true
         }
