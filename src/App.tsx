@@ -349,7 +349,7 @@ export default function App() {
             // 设置支线目标
             const sq = SIDE_QUESTS.find(q => q.id === questId)
             if (sq) {
-              const locKey = questId === 'sq_lost_phone' ? 'rear-humidity' : 'mural-monitor'
+              const locKey = questId === 'sq_lost_phone' ? 'rear-humidity' : questId === 'sq_mural_restore' ? 'mural-monitor' : 'mural-monitor'
               bus.emit('objective:changed', {
                 type: 'point',
                 targetId: locKey,
@@ -399,7 +399,7 @@ export default function App() {
     }
 
     // ═══ P2: 支线任务特殊处理 ═══
-    if (step.id === 'sq_lost_phone' || step.id === 'sq_artifact_talk') {
+    if (step.id === 'sq_lost_phone' || step.id === 'sq_artifact_talk' || step.id === 'sq_mural_restore') {
       styleCountRef.current[choice.style]++
       // 触发小游戏
       const event = new CustomEvent('minigame:start', {

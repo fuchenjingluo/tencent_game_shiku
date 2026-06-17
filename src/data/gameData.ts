@@ -555,7 +555,7 @@ export interface SideQuest {
   npcName: string
   briefing: string
   locationHint: string  // 提示玩家去哪里
-  miniGame: { type: 'memory' | 'timing' | 'sequence'; difficulty: 1 | 2; prompt: string; narrativeBinding: string }
+  miniGame: { type: 'memory' | 'timing' | 'sequence' | 'puzzle'; difficulty: 1 | 2; prompt: string; narrativeBinding: string }
   rewards: Partial<Record<'reputation' | 'risk' | 'evidence' | 'budget', number>>
   completedMessage: string
   failedMessage: string
@@ -593,6 +593,22 @@ export const SIDE_QUESTS: SideQuest[] = [
     rewards: { reputation: 6, evidence: 4 },
     completedMessage: '你从壁画的颜料矿物学讲到丝绸之路的佛教东传，再讲到画师可能的名字和流派。老者听完沉默片刻，缓缓掏出一个笔记本："我是省文物考古研究所的退休研究员。你今天讲的这些，比我们以前写的讲解词好太多了。"他把笔记本递给你——上面写满了老专家四十年的心得笔记。',
     failedMessage: '你讲得有点慌乱，跳过了几个关键的细节。老者温和地笑了笑："没关系，年轻人。文物讲解不是背课本，是讲故事。下次，从你最熟悉的那个细节开始。"',
+  },
+  {
+    id: 'sq_mural_restore',
+    title: '壁画拼接修复',
+    npcName: '文物修复师',
+    briefing: '一位戴着白手套的文物修复师从工作台后探出头，向你招手："小伙子来得正好！上个月抢救性揭取下来的飞天壁画碎片还散在修复台上。我一个人拼了三天才归位一半——你眼神好，帮我一起把剩下的碎片归位吧。这幅画要是拼不回去，下个月的敦煌学国际会议上我们可就要丢人了。"',
+    locationHint: '前往壁画保护区修复台，协助修复师拼接飞天壁画碎片。',
+    miniGame: {
+      type: 'puzzle',
+      difficulty: 1,
+      prompt: '将碎片盒中的壁画残片拖放至修复框中的正确位置，还原飞天伎乐图',
+      narrativeBinding: '你戴上白手套，站在修复台前。二十多块巴掌大的壁画残片散落在分格木盘里——赭石底色、青金飘带、金粉晕染……每一片都是千年前画师的一笔。光影下它们仿佛还在微微发光。你深吸一口气，从最显眼的那片飞天衣袖开始。',
+    },
+    rewards: { reputation: 8, evidence: 6 },
+    completedMessage: '当最后一片残片精准嵌入修复框时，整幅壁画仿佛活了过来——三位飞天在空中环绕飞翔，飘带如同在微风中拂动。修复师摘下眼镜，眼眶微红："拼了四天。这幅飞天伎乐图在敦煌学文献里失踪了整整六十年，今天终于完整了。"他在修复档案上郑重签下你们两个人的名字。',
+    failedMessage: '你尽力了，但还是有几块碎片对不上。修复师拍了拍你的肩膀："没关系，壁画修复是慢功夫。今天我学到了一个新角度——你刚才把飞天裙摆横过来比的那一下，给了我灵感。明天我自己继续。"他把你试过的那几块碎片单独放在一个小盘里，贴上标签："待确认"。',
   },
 ]
 

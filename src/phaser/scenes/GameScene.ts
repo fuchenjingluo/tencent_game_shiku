@@ -830,7 +830,7 @@ export class GameScene extends Phaser.Scene {
   private isPointVisible(pointKey: string): boolean {
     // P2: 支线任务目标点始终可见
     if (this.activeSideQuest === 'sq_lost_phone' && pointKey === 'rear-humidity') return true
-    if (this.activeSideQuest === 'sq_artifact_talk' && pointKey === 'mural-monitor') return true
+    if ((this.activeSideQuest === 'sq_artifact_talk' || this.activeSideQuest === 'sq_mural_restore') && pointKey === 'mural-monitor') return true
 
     const mappings = POINT_TASK_MAP[pointKey]
     if (!mappings) {
@@ -1462,8 +1462,8 @@ export class GameScene extends Phaser.Scene {
       choices: [
         {
           id: sq.id + '_try',
-          label: sq.id === 'sq_lost_phone' ? '仔细搜索通风井' : '开始专业讲解',
-          desc: sq.id === 'sq_lost_phone' ? '用手电筒逐寸搜索暗窟通风井，找到手机。' : '从壁画的矿物颜料开始，讲述千年前的故事。',
+          label: sq.id === 'sq_lost_phone' ? '仔细搜索通风井' : sq.id === 'sq_mural_restore' ? '开始壁画拼接' : '开始专业讲解',
+          desc: sq.id === 'sq_lost_phone' ? '用手电筒逐寸搜索暗窟通风井，找到手机。' : sq.id === 'sq_mural_restore' ? '戴上手套，从碎片盒中选取壁画残片拼回修复框。' : '从壁画的矿物颜料开始，讲述千年前的故事。',
           style: 'professional' as const,
           deltas: sq.rewards,
           miniGame: sq.miniGame,
@@ -1473,7 +1473,7 @@ export class GameScene extends Phaser.Scene {
         },
         {
           id: sq.id + '_quick',
-          label: sq.id === 'sq_lost_phone' ? '用强光手电快速扫视' : '简要介绍要点',
+          label: sq.id === 'sq_lost_phone' ? '用强光手电快速扫视' : sq.id === 'sq_mural_restore' ? '快速试拼主要碎片' : '简要介绍要点',
           desc: '快速完成，效率优先——但可能漏掉关键细节。',
           style: 'compromise' as const,
           deltas: {},
@@ -1486,7 +1486,7 @@ export class GameScene extends Phaser.Scene {
         },
         {
           id: sq.id + '_intense',
-          label: sq.id === 'sq_lost_phone' ? '进入暗窟深处搜寻' : '深度学术级讲解',
+          label: sq.id === 'sq_lost_phone' ? '进入暗窟深处搜寻' : sq.id === 'sq_mural_restore' ? '盲拼难度挑战' : '深度学术级讲解',
           desc: '用最专业的方式完成任务——但可能付出额外代价。',
           style: 'risky' as const,
           deltas: { ...sq.rewards, risk: sq.id === 'sq_lost_phone' ? 3 : 1 },

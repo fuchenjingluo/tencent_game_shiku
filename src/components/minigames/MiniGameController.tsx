@@ -14,6 +14,7 @@ import { TimingGame } from './TimingGame'
 import { CalibrateGame } from './CalibrateGame'
 import { WireGame } from './WireGame'
 import { SequenceGame } from './SequenceGame'
+import { PuzzleGame } from './PuzzleGame'
 
 interface MiniGameControllerProps {
   onTaskAdvance: (success: boolean, deltas: Partial<Record<Stat, number>>) => void
@@ -214,6 +215,9 @@ export function MiniGameController({ onTaskAdvance, onStatsChange }: MiniGameCon
             {state.config.type === 'sequence' && (
               <SequenceGame difficulty={state.config.difficulty} prompt={state.config.prompt} onComplete={handleComplete} />
             )}
+            {state.config.type === 'puzzle' && (
+              <PuzzleGame difficulty={state.config.difficulty} prompt={state.config.prompt} onComplete={handleComplete} />
+            )}
           </motion.div>
         ) : (
           <ResultCard
@@ -233,6 +237,7 @@ function getGameName(type: string) {
     trace: '路径描摹', memory: '序列记忆', match: '翻牌配对',
     timing: '时机按键', calibrate: '精密校准', wire: '接线连接',
     sequence: '顺序排列',
+    puzzle: '壁画修复',
   }
   return map[type] ?? type
 }

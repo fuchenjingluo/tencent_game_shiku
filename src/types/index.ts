@@ -11,6 +11,7 @@ export type MiniGameType =
   | 'calibrate'
   | 'wire'
   | 'sequence'
+  | 'puzzle'
 
 export interface MiniGameConfig {
   type: MiniGameType
