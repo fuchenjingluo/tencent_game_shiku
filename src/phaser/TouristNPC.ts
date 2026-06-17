@@ -652,8 +652,16 @@ export class TouristManager {
       if (t.wpIndex < t.waypoints.length - 1) {
         t.wpIndex++
       } else {
-        t.waypoints = []
-        t.wpIndex = 0
+        // 到达最后一个路点 → 检查是否已进入目标区域
+        const arrivedRoom = this.findRoomIdAt(t.sprite.x, t.sprite.y)
+        if (arrivedRoom === t.targetZoneId) {
+          t.currentRoomId = arrivedRoom
+          this.transitionTo(t, 'roaming')
+        } else {
+          // 还没到目标区域 → 重新规划剩余路径
+          t.waypoints = []
+          t.wpIndex = 0
+        }
       }
     } else {
       t.arrived = false
