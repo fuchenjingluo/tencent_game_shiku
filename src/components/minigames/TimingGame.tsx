@@ -292,11 +292,11 @@ export function TimingGame({ difficulty, prompt, onComplete }: TimingGameProps) 
       {/* 轮次指示 */}
       {phase !== 'idle' && <RoundDots />}
 
-      {/* ════ 固定高度游戏区域 — 防止内容显示/隐藏时布局跳动 ════ */}
-      <div style={{ width: 420, minHeight: 136, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, flexShrink: 0 }}>
+      {/* ════ 固定位置游戏区域 — 绝对定位，完全防止布局跳动 ════ */}
+      <div style={{ width: 420, height: 136, position: 'relative', flexShrink: 0 }}>
 
-        {/* 状态条 — 固定高度占位 */}
-        <div style={{ height: 18, display: 'flex', alignItems: 'center' }}>
+        {/* 状态条 — 绝对定位 top:0 */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {phase === 'playing' && (
             <div style={{ display: 'flex', gap: 16, fontSize: 10, fontFamily: 'monospace', color: zoneColor }}>
               <span>稳定度 {stability}%</span>
@@ -306,8 +306,8 @@ export function TimingGame({ difficulty, prompt, onComplete }: TimingGameProps) 
           )}
         </div>
 
-        {/* 指针滑条 — 固定高度占位 */}
-        <div style={{ width: 400, height: 56, position: 'relative' }}>
+        {/* 指针滑条 — 绝对定位 top:28 */}
+        <div style={{ position: 'absolute', top: 28, left: 10, width: 400, height: 56 }}>
           {phase === 'playing' && (
             <motion.div
               key={`round-${round}-${pulseKey}`}
@@ -373,8 +373,8 @@ export function TimingGame({ difficulty, prompt, onComplete }: TimingGameProps) 
           )}
         </div>
 
-        {/* 操作提示 — 固定高度占位 */}
-        <div style={{ height: 16, display: 'flex', alignItems: 'center' }}>
+        {/* 操作提示 — 绝对定位 top:94 */}
+        <div style={{ position: 'absolute', top: 94, left: 0, right: 0, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {phase === 'playing' && (
             <div style={{ fontSize: 10, color: '#5a5040', fontFamily: 'monospace' }}>
               按 <span style={{ color: '#d7bd73', fontWeight: 500 }}>空格</span> 或
@@ -384,61 +384,65 @@ export function TimingGame({ difficulty, prompt, onComplete }: TimingGameProps) 
           )}
         </div>
 
-        {/* 单轮结果 */}
-        <AnimatePresence>
-          {phase === 'round-result' && justResult && (
-            <motion.div
-              key="round-result"
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 18 }}
-              style={{ textAlign: 'center' }}
-            >
-              {justResult === 'perfect' && (
-                <div>
-                  <motion.div
-                    animate={{ scale: [1, 1.3, 1] }}
-                    transition={{ duration: 0.4 }}
-                    style={{ fontSize: 40, marginBottom: 2 }}
-                  >🎯</motion.div>
-                  <div style={{ fontSize: 15, color: '#f5d669', fontWeight: 700 }}>黄金命中！</div>
-                  <div style={{ fontSize: 10, color: '#8b7355', marginTop: 2 }}>在黄金窗口内锁定 — 数据精度达到最优</div>
-                </div>
-              )}
-              {justResult === 'hit' && (
-                <div>
-                  <div style={{ fontSize: 36, marginBottom: 2 }}>✅</div>
-                  <div style={{ fontSize: 15, color: '#8fae78', fontWeight: 700 }}>读数已锁定</div>
-                  <div style={{ fontSize: 10, color: '#8b7355', marginTop: 2 }}>命中目标窗口，数据可用</div>
-                </div>
-              )}
-              {justResult === 'miss' && (
-                <div>
-                  <div style={{ fontSize: 36, marginBottom: 2 }}>💨</div>
-                  <div style={{ fontSize: 15, color: '#d98f72', fontWeight: 700 }}>窗口错过</div>
-                  <div style={{ fontSize: 10, color: '#8b7355', marginTop: 2 }}>指针偏离目标区间</div>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* 单轮结果 — 居中覆盖 */}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          <AnimatePresence>
+            {phase === 'round-result' && justResult && (
+              <motion.div
+                key="round-result"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+                style={{ textAlign: 'center' }}
+              >
+                {justResult === 'perfect' && (
+                  <div>
+                    <motion.div
+                      animate={{ scale: [1, 1.3, 1] }}
+                      transition={{ duration: 0.4 }}
+                      style={{ fontSize: 40, marginBottom: 2 }}
+                    >🎯</motion.div>
+                    <div style={{ fontSize: 15, color: '#f5d669', fontWeight: 700 }}>黄金命中！</div>
+                    <div style={{ fontSize: 10, color: '#8b7355', marginTop: 2 }}>在黄金窗口内锁定 — 数据精度达到最优</div>
+                  </div>
+                )}
+                {justResult === 'hit' && (
+                  <div>
+                    <div style={{ fontSize: 36, marginBottom: 2 }}>✅</div>
+                    <div style={{ fontSize: 15, color: '#8fae78', fontWeight: 700 }}>读数已锁定</div>
+                    <div style={{ fontSize: 10, color: '#8b7355', marginTop: 2 }}>命中目标窗口，数据可用</div>
+                  </div>
+                )}
+                {justResult === 'miss' && (
+                  <div>
+                    <div style={{ fontSize: 36, marginBottom: 2 }}>💨</div>
+                    <div style={{ fontSize: 15, color: '#d98f72', fontWeight: 700 }}>窗口错过</div>
+                    <div style={{ fontSize: 10, color: '#8b7355', marginTop: 2 }}>指针偏离目标区间</div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
-        {/* 开始按钮 */}
+        {/* 开始按钮 — 居中覆盖 */}
         {phase === 'idle' && (
-          <motion.button
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={startGame}
-            style={{
-              padding: '10px 32px', background: 'rgba(215,189,115,0.1)',
-              border: '1px solid rgba(215,189,115,0.4)', borderRadius: 8,
-              color: '#d7bd73', cursor: 'pointer', fontSize: 14,
-              fontFamily: 'monospace',
-            }}
-          >
-            ⏱ 开始校准 ({totalRounds}轮)
-          </motion.button>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <motion.button
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={startGame}
+              style={{
+                padding: '10px 32px', background: 'rgba(215,189,115,0.1)',
+                border: '1px solid rgba(215,189,115,0.4)', borderRadius: 8,
+                color: '#d7bd73', cursor: 'pointer', fontSize: 14,
+                fontFamily: 'monospace',
+              }}
+            >
+              ⏱ 开始校准 ({totalRounds}轮)
+            </motion.button>
+          </div>
         )}
       </div>
 
