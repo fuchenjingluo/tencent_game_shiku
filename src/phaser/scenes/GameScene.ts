@@ -1628,6 +1628,8 @@ export class GameScene extends Phaser.Scene {
       npcName: quest.npcName,
     })
     this.activeSideQuest = quest.id
+    // ★ 立即更新小地图目标标记和寻路提示
+    this.time.delayedCall(400, () => this.updateObjective())
   }
 
   /** P2: 完成支线任务 */
@@ -1818,7 +1820,23 @@ export class GameScene extends Phaser.Scene {
   private updateObjective() {
     let newObj: Objective | null = null
 
-    if (this.activeTask) {
+    // ── P2: 支线任务优先 — 覆盖主线目标 ──
+    if (this.activeSideQuest) {
+      const sq = SIDE_QUESTS.find((q) => q.id === this.activeSideQuest)
+      if (sq) {
+        const locKey = this.activeSideQuest === 'sq_lost_phone' ? 'rear-humidity' : 'mural-monitor'
+        const roomId = this.activeSideQuest === 'sq_lost_phone' ? 'rear-cave' : 'mural-room'
+        const room = ROOMS.find((r) => r.id === roomId)
+        newObj = {
+          type: 'point',
+          targetId: locKey,
+          roomId,
+          roomName: room?.name ?? '',
+          name: '🎒 ' + sq.title,
+          description: sq.locationHint,
+        }
+      }
+    } else if (this.activeTask) {
       // 有活跃任务 → 指向当前步骤的交互点
       const task = TASKS.find((t) => t.id === this.activeTask!.taskId)
       if (task) {
