@@ -41,6 +41,10 @@ interface Tourist {
   originX: number            // 本次路点起点 x
   originY: number            // 本次路点起点 y
   shortHopCount: number      // 连续"短距到达"计数（< 60px）
+
+  // ★ 房间意识：防止游客聚集在中心窟室
+  currentRoomId: string | null  // 当前所在房间 id
+  roomHopCount: number          // 在同一房间内连续选路点的次数
 }
 
 // ─── 随机事件定义 ──────────────────────────────────────────────────────────
@@ -242,6 +246,8 @@ export class TouristManager {
       originX: sx,
       originY: sy,
       shortHopCount: 0,
+      currentRoomId: this.findRoomIdAt(sx, sy),
+      roomHopCount: 0,
     }
     this.tourists.push(tourist)
   }
@@ -266,8 +272,33 @@ export class TouristManager {
     return escape
   }
 
-  /** 在全地图范围内随机选一个可走行的路点 */
+  /**
+   * 在全地图范围内随机选一个可走行的路点。
+   * roomHopCount >= 3 时强制选其他房间（打破中心窟室聚集）。
+   */
   private pickRandomWaypoint(nearX: number, nearY: number, forceFar: boolean = false): { x: number; y: number } {
+    // ★ 房间意识：在同一房间内连续选了 3 次路点 → 强制跨房间
+    const curRoom = this.findRoomIdAt(nearX, nearY)
+    const shouldChangeRoom = forceFar || (curRoom !== null && this.currentRoomId === curRoom && this.roomHopCount >= 3)
+
+    if (shouldChangeRoom) {
+      // 从其他房间中随机选一个作为目标
+      const otherRooms = ROOMS.filter(r => r.id !== curRoom)
+      // 打乱顺序尝试
+      for (let i = otherRooms.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[otherRooms[i], otherRooms[j]] = [otherRooms[j], otherRooms[i]]
+      }
+      for (const room of otherRooms) {
+        const pt = this.pickPointInRoom(room.id)
+        if (pt) {
+          this.roomHopCount = 0
+          return pt
+        }
+      }
+      // 全部房间都失败 → 继续走下面的近距离 fallback
+    }
+
     // 偏向当前位置附近 80~400px 范围；forceFar 时拉到 250~600px
     const minDist = forceFar ? 250 : 80
     const maxDist = forceFar ? 600 : 400
@@ -310,7 +341,6 @@ export class TouristManager {
     const room = ROOMS[Math.floor(Math.random() * ROOMS.length)]
     const cx = Math.round((room.x + room.w / 2) * TILE_SIZE)
     const cy = Math.round((room.y + room.h / 2) * TILE_SIZE)
-    // 房间中心可能也在障碍物上，微调一下
     if (this.isInsideAnyObstacle(cx, cy, 0)) {
       return this.pickEscapePoint(nearX, nearY)
     }
@@ -420,6 +450,14 @@ export class TouristManager {
         return
       }
 
+      // ★ 更新当前所在房间（用于房间聚集检测）
+      const detectedRoom = this.findRoomIdAt(t.sprite.x, t.sprite.y)
+      if (detectedRoom !== t.currentRoomId) {
+        // 进入新房间 → 重置计数
+        t.currentRoomId = detectedRoom
+        t.roomHopCount = 0
+      }
+
       // ★ 卡死检测：连续不动超 1.5s → 强制刷新路点（比 steerToward 内部检测更早介入）
       const movedThisFrame = Math.abs(t.sprite.x - t.lastStuckX) + Math.abs(t.sprite.y - t.lastStuckY)
       if (movedThisFrame < 2 && !t.arrived) {
@@ -446,6 +484,8 @@ export class TouristManager {
         t.pauseUntil = now + 600 + Math.random() * 2000
         // 在当前位置附近随机选一个点；连续短距跳跃 3 次 → 强制远距离
         const forceFar = t.shortHopCount >= 3
+        // ★ 同一房间内连续选 3 次路点 → 强制跨房间（在 pickRandomWaypoint 内处理）
+        t.roomHopCount++
         t.waypoints = [this.pickRandomWaypoint(t.sprite.x, t.sprite.y, forceFar)]
         t.wpIndex = 0
         t.originX = t.sprite.x
@@ -746,6 +786,37 @@ export class TouristManager {
     const row = Math.floor(y / TILE_SIZE)
     if (col < 0 || col >= MAP_COLS || row < 0 || row >= MAP_ROWS) return true
     return this.mapData[row * MAP_COLS + col] === 2
+  }
+
+  /** ★ 返回某像素坐标所在的房间 id（不在任何房间内返回 null） */
+  private findRoomIdAt(x: number, y: number): string | null {
+    const col = x / TILE_SIZE
+    const row = y / TILE_SIZE
+    for (const r of ROOMS) {
+      if (col >= r.x && col < r.x + r.w && row >= r.y && row < r.y + r.h) {
+        return r.id
+      }
+    }
+    return null
+  }
+
+  /** ★ 在指定房间内找一个可走行的安全点（用于跨房间目标） */
+  private pickPointInRoom(roomId: string): { x: number; y: number } | null {
+    const room = ROOMS.find(r => r.id === roomId)
+    if (!room) return null
+    const roomCX = (room.x + room.w / 2) * TILE_SIZE
+    const roomCY = (room.y + room.h / 2) * TILE_SIZE
+    const rangeX = (room.w - 2) * TILE_SIZE / 2
+    const rangeY = (room.h - 2) * TILE_SIZE / 2
+
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const x = roomCX + (Math.random() - 0.5) * rangeX * 2
+      const y = roomCY + (Math.random() - 0.5) * rangeY * 2
+      if (!this.isWallTile(x, y) && !this.isInsideAnyObstacle(x, y, 28)) {
+        return { x: Math.round(x), y: Math.round(y) }
+      }
+    }
+    return null
   }
 
   /** ★ 视线检查：从 (x1,y1) 到 (x2,y2) 之间是否有墙壁/障碍物阻挡 */
