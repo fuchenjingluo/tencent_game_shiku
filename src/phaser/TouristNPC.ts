@@ -17,34 +17,38 @@ export interface ObstacleData {
   hh: number      // 半高（像素）
 }
 
-// ─── 游客实例 ──────────────────────────────────────────────────────────────
+// ─── 状态机 ────────────────────────────────────────────────────────────────
+
+type TouristState = 'roaming' | 'traveling' | 'blocked'
+// roaming   = 在区域内自由漫步（每帧选近距离路点，严格限室内）
+// traveling = 沿 BFS 路径前往目标区域
+// blocked   = 卡在障碍物中，正在脱困
 
 interface Tourist {
   sprite: Phaser.GameObjects.Sprite
   nameLabel: Phaser.GameObjects.Text
   speed: number              // px/s
-  pauseUntil: number         // 停留到何时
+  pauseUntil: number         // 停留到何时（各状态通用）
   variant: number            // 外观变体 (0-2)
 
-  // 漫游状态
-  waypoints: { x: number; y: number }[]  // 随机漫步路点队列
-  wpIndex: number            // 当前去往的 waypoint 索引
-  arrived: boolean           // 到达当前 waypoint
+  // 路点导航
+  waypoints: { x: number; y: number }[]
+  wpIndex: number
+  arrived: boolean
 
-  laneOffset: number         // ★ 每位游客独有偏移 (-0.9~0.9)，避免路线重叠
-  stuckTimer: number         // ★ 卡死检测：连续不动累计时间 (s)
-  lastStuckX: number         // ★ 卡死检测：上次记录位置
+  // 避障与排斥
+  laneOffset: number
+  stuckTimer: number
+  lastStuckX: number
   lastStuckY: number
 
-  // ★ 振荡检测：防止游客在小范围反复横跳
-  travelDist: number         // 本次路点已累计移动距离
-  originX: number            // 本次路点起点 x
-  originY: number            // 本次路点起点 y
-  shortHopCount: number      // 连续"短距到达"计数（< 60px）
-
-  // ★ 房间意识：防止游客聚集在中心窟室
-  currentRoomId: string | null  // 当前所在房间 id
-  roomHopCount: number          // 在同一房间内连续选路点的次数
+  // 状态机
+  state: TouristState
+  prevState: TouristState    // blocked 返回时恢复的状态
+  currentRoomId: string | null
+  targetZoneId: string | null  // traveling 时前往的目标区域
+  zoneEnterTime: number        // 进入当前区域的时间（roaming 计时用）
+  roamDuration: number         // roaming 在本区域的停留时长
 }
 
 // ─── 随机事件定义 ──────────────────────────────────────────────────────────
@@ -245,26 +249,25 @@ export class TouristManager {
       stroke: '#000000', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(Math.floor(sy / 28) + 0.5)
 
-    // ★ 立即生成一个随机漫步目标（roomHopCount=0，出生时不会强制跨房间）
-    const firstWp = this.pickRandomWaypoint(sx, sy, this.findRoomIdAt(sx, sy), 0)
+    const spawnedRoom = this.findRoomIdAt(sx, sy)
 
     const tourist: Tourist = {
       sprite: spr, nameLabel: label,
       speed: 28 + Math.random() * 18,
       pauseUntil: 0, variant,
-      waypoints: [firstWp],
+      waypoints: [],
       wpIndex: 0,
       arrived: false,
       laneOffset: (Math.random() - 0.5) * 1.8,
       stuckTimer: 0,
       lastStuckX: sx,
       lastStuckY: sy,
-      travelDist: 0,
-      originX: sx,
-      originY: sy,
-      shortHopCount: 0,
-      currentRoomId: this.findRoomIdAt(sx, sy),
-      roomHopCount: 0,
+      state: 'roaming',
+      prevState: 'roaming',
+      currentRoomId: spawnedRoom,
+      targetZoneId: null,
+      zoneEnterTime: this.scene.time.now,
+      roamDuration: 8000 + Math.random() * 12000,
     }
     this.tourists.push(tourist)
   }
@@ -291,90 +294,105 @@ export class TouristManager {
     return escape
   }
 
-  /**
-   * 在全地图范围内随机选一个可走行的路点。
-   * 接收游客位置 + 房间状态（currentRoomId / roomHopCount）。
-   * roomHopCount >= 2 时强制选其他房间（打破中心窟室聚集）。
-   */
-  private pickRandomWaypoint(
-    nearX: number, nearY: number,
-    currentRoomId: string | null,
-    roomHopCount: number,
-    forceFar: boolean = false,
-  ): { x: number; y: number } {
-    // ★ 房间意识：在同一房间内连续选了 2 次路点 → 强制跨房间
-    const curRoom = this.findRoomIdAt(nearX, nearY)
-    const shouldChangeRoom = forceFar || (curRoom !== null && currentRoomId === curRoom && roomHopCount >= 2)
+  private countTouristsInRoom(roomId: string): number {
+    let count = 0
+    for (const t of this.tourists) {
+      if (this.findRoomIdAt(t.sprite.x, t.sprite.y) === roomId) count++
+    }
+    return count
+  }
 
-    if (shouldChangeRoom) {
-      // 从其他房间中随机选一个作为目标
-      const otherRooms = ROOMS.filter(r => r.id !== curRoom)
-      // 打乱顺序尝试
-      for (let i = otherRooms.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1))
-        ;[otherRooms[i], otherRooms[j]] = [otherRooms[j], otherRooms[i]]
+  private findPathWaypoints(
+    startX: number,
+    startY: number,
+    goalX: number,
+    goalY: number,
+  ): { x: number; y: number }[] {
+    const start = this.findNearestWalkableTile(Math.floor(startX / TILE_SIZE), Math.floor(startY / TILE_SIZE))
+    const goal = this.findNearestWalkableTile(Math.floor(goalX / TILE_SIZE), Math.floor(goalY / TILE_SIZE))
+    if (!start || !goal) return []
+
+    const key = (c: number, r: number) => `${c},${r}`
+    const queue: { c: number; r: number }[] = [start]
+    const cameFrom = new Map<string, string | null>([[key(start.c, start.r), null]])
+    const dirs = [
+      { c: 1, r: 0 },
+      { c: -1, r: 0 },
+      { c: 0, r: 1 },
+      { c: 0, r: -1 },
+    ]
+
+    for (let head = 0; head < queue.length; head++) {
+      const cur = queue[head]
+      if (cur.c === goal.c && cur.r === goal.r) break
+      for (const d of dirs) {
+        const nc = cur.c + d.c
+        const nr = cur.r + d.r
+        const nk = key(nc, nr)
+        if (cameFrom.has(nk) || !this.isWalkableTile(nc, nr)) continue
+        cameFrom.set(nk, key(cur.c, cur.r))
+        queue.push({ c: nc, r: nr })
       }
-      for (const room of otherRooms) {
-        const pt = this.pickPointInRoom(room.id)
-        if (pt) {
-          return pt
+    }
+
+    const goalKey = key(goal.c, goal.r)
+    if (!cameFrom.has(goalKey)) return []
+
+    const tiles: { c: number; r: number }[] = []
+    let curKey: string | null = goalKey
+    while (curKey) {
+      const [c, r] = curKey.split(',').map(Number)
+      tiles.push({ c, r })
+      curKey = cameFrom.get(curKey) ?? null
+    }
+    tiles.reverse()
+
+    const waypoints: { x: number; y: number }[] = []
+    let lastDir = ''
+    let lastAddedIndex = 0
+    const stride = 4
+
+    for (let i = 1; i < tiles.length; i++) {
+      const prev = tiles[i - 1]
+      const tile = tiles[i]
+      const dir = `${Math.sign(tile.c - prev.c)},${Math.sign(tile.r - prev.r)}`
+      const directionChanged = dir !== lastDir && i > 1
+      const enoughDistance = i - lastAddedIndex >= stride
+
+      if (directionChanged || enoughDistance) {
+        const anchor = directionChanged ? prev : tile
+        waypoints.push({ x: (anchor.c + 0.5) * TILE_SIZE, y: (anchor.r + 0.5) * TILE_SIZE })
+        lastAddedIndex = i
+      }
+      lastDir = dir
+    }
+    waypoints.push({ x: goalX, y: goalY })
+
+    return waypoints.filter((wp, index) =>
+      index === 0 || Phaser.Math.Distance.Between(waypoints[index - 1].x, waypoints[index - 1].y, wp.x, wp.y) > 10
+    )
+  }
+
+  private findNearestWalkableTile(col: number, row: number): { c: number; r: number } | null {
+    for (let radius = 0; radius <= 8; radius++) {
+      for (let dr = -radius; dr <= radius; dr++) {
+        for (let dc = -radius; dc <= radius; dc++) {
+          if (Math.abs(dc) !== radius && Math.abs(dr) !== radius) continue
+          const c = col + dc
+          const r = row + dr
+          if (this.isWalkableTile(c, r)) return { c, r }
         }
       }
-      // 全部房间都失败 → 继续走下面的近距离 fallback
     }
+    return null
+  }
 
-    // 偏向当前位置附近 80~400px 范围；forceFar 时拉到 250~600px
-    const minDist = forceFar ? 250 : 80
-    const maxDist = forceFar ? 600 : 400
-
-    // 第一轮：30 次尝试，要求视线通畅
-    for (let attempt = 0; attempt < 30; attempt++) {
-      const angle = Math.random() * Math.PI * 2
-      const dist = minDist + Math.random() * (maxDist - minDist)
-      const x = nearX + Math.cos(angle) * dist
-      const y = nearY + Math.sin(angle) * dist
-
-      const col = Math.floor(x / TILE_SIZE)
-      const row = Math.floor(y / TILE_SIZE)
-      if (col < 2 || col >= MAP_COLS - 2 || row < 2 || row >= MAP_ROWS - 2) continue
-      if (this.isWallTile(x, y)) continue
-      if (this.isInsideAnyObstacle(x, y, 28)) continue
-      if (this.isInsideAnyObstacle(x + 8, y, 0)) continue
-      if (this.isInsideAnyObstacle(x - 8, y, 0)) continue
-      if (this.isInsideAnyObstacle(x, y + 8, 0)) continue
-      if (this.isInsideAnyObstacle(x, y - 8, 0)) continue
-      if (!this.hasLineOfSight(nearX, nearY, x, y)) continue
-      // ★ main-hall 路点接受率降低 — 60% 概率拒绝（打破聚集）
-      const wpRoom = this.findRoomIdAt(x, y)
-      if (wpRoom === 'main-hall' && Math.random() < 0.6) continue
-      return { x: Math.round(x), y: Math.round(y) }
-    }
-
-    // 第二轮：10 次尝试，放弃视线检查（让 steering 处理绕障）
-    for (let attempt = 0; attempt < 10; attempt++) {
-      const angle = Math.random() * Math.PI * 2
-      const dist = (forceFar ? 200 : 120) + Math.random() * 200
-      const x = nearX + Math.cos(angle) * dist
-      const y = nearY + Math.sin(angle) * dist
-      const col = Math.floor(x / TILE_SIZE)
-      const row = Math.floor(y / TILE_SIZE)
-      if (col < 2 || col >= MAP_COLS - 2 || row < 2 || row >= MAP_ROWS - 2) continue
-      if (this.isWallTile(x, y)) continue
-      if (this.isInsideAnyObstacle(x, y, 28)) continue
-      // ★ main-hall 路点接受率降低
-      const wpRoom = this.findRoomIdAt(x, y)
-      if (wpRoom === 'main-hall' && Math.random() < 0.6) continue
-      return { x: Math.round(x), y: Math.round(y) }
-    }
-
-    // 终极 fallback：随机房间中心（强制长距离转移）
-    const room = ROOMS[Math.floor(Math.random() * ROOMS.length)]
-    const cx = Math.round((room.x + room.w / 2) * TILE_SIZE)
-    const cy = Math.round((room.y + room.h / 2) * TILE_SIZE)
-    if (this.isInsideAnyObstacle(cx, cy, 0)) {
-      return this.pickEscapePoint(nearX, nearY)
-    }
-    return { x: cx, y: cy }
+  private isWalkableTile(col: number, row: number): boolean {
+    if (col < 1 || col >= MAP_COLS - 1 || row < 1 || row >= MAP_ROWS - 1) return false
+    if (this.mapData[row * MAP_COLS + col] === 2) return false
+    const x = (col + 0.5) * TILE_SIZE
+    const y = (row + 0.5) * TILE_SIZE
+    return !this.isInsideAnyObstacle(x, y, 12)
   }
 
   /** 卡住时找到一个安全点（远离障碍物） */
@@ -448,15 +466,52 @@ export class TouristManager {
   }
 
   // ═════════════════════════════════════════════════════════════════════
-  // 移动 + 墙壁排斥 steering
+  // 状态机
+  // ═════════════════════════════════════════════════════════════════════
+
+  /** 统一的状态切换 — 重置所有相关 flag，保证一致性 */
+  private transitionTo(t: Tourist, newState: TouristState): void {
+    if (t.state === newState) return
+
+    if (newState === 'roaming') {
+      t.zoneEnterTime = this.scene.time.now
+      t.roamDuration = 8000 + Math.random() * 12000
+      t.waypoints = []
+      t.wpIndex = 0
+      t.arrived = false
+      t.pauseUntil = 0
+      t.stuckTimer = 0
+      t.targetZoneId = null
+    }
+
+    if (newState === 'traveling') {
+      t.waypoints = []
+      t.wpIndex = 0
+      t.arrived = false
+      t.pauseUntil = 0
+      t.stuckTimer = 0
+    }
+
+    if (newState === 'blocked') {
+      t.prevState = t.state
+      t.arrived = false
+      t.pauseUntil = 0
+      t.stuckTimer = 0
+    }
+
+    t.state = newState
+  }
+
+  // ═════════════════════════════════════════════════════════════════════
+  // 每帧更新：通用检测 + 按状态分发
   // ═════════════════════════════════════════════════════════════════════
 
   private updateTourists(dt: number): void {
     const now = this.scene.time.now
-    this.tourists.forEach((t) => {
-      if (t.pauseUntil > now) return
+    const mainHallLoad = this.countTouristsInRoom('main-hall')
 
-      // ★ 活跃事件游客冻结在原地 — 玩家需要赶到现场
+    this.tourists.forEach((t) => {
+      // ★ 活跃事件游客冻结在原地
       if (t === this.activeEventTourist && !this.eventResolved) {
         t.sprite.setDepth(Math.floor(t.sprite.y / 28))
         t.nameLabel.setDepth(Math.floor(t.sprite.y / 28) + 0.5)
@@ -467,29 +522,37 @@ export class TouristManager {
       t.sprite.setDepth(Math.floor(t.sprite.y / 28))
       t.nameLabel.setDepth(Math.floor(t.sprite.y / 28) + 0.5)
 
-      // ★ 脱困：如果卡在障碍物内，强制推出并刷新路点
-      const wasInsideObstacle = this.isInsideAnyObstacle(t.sprite.x, t.sprite.y, 0)
-      this.unstuckFromObstacles(t)
-      if (wasInsideObstacle) {
-        // 无论是否 arrived，脱困后都必须刷新路点
-        t.arrived = false
-        t.pauseUntil = 0
-        t.stuckTimer = 0
-        t.roomHopCount++  // ★ 脱困也计数，加速跨房间
-        t.waypoints = [this.pickRandomWaypoint(t.sprite.x, t.sprite.y, t.currentRoomId, t.roomHopCount)]
-        t.wpIndex = 0
+      // ── 通用检测（所有状态） ──
+
+      // 房间变更检测
+      const detectedRoom = this.findRoomIdAt(t.sprite.x, t.sprite.y)
+      if (detectedRoom !== t.currentRoomId) {
+        t.currentRoomId = detectedRoom
+        // traveling 中到达目标区域 → 切回 roaming
+        if (t.state === 'traveling' && detectedRoom === t.targetZoneId) {
+          this.transitionTo(t, 'roaming')
+        }
+      }
+
+      // main-hall 拥挤检测（仅 roaming 触发，强制离开）
+      if (detectedRoom === 'main-hall' && mainHallLoad > 2 && t.state === 'roaming') {
+        const zones = ROOMS.filter(r => r.id !== 'main-hall')
+        t.targetZoneId = zones[Math.floor(Math.random() * zones.length)].id
+        this.transitionTo(t, 'traveling')
         return
       }
 
-      // ★ 更新当前所在房间（用于房间聚集检测）
-      const detectedRoom = this.findRoomIdAt(t.sprite.x, t.sprite.y)
-      if (detectedRoom !== t.currentRoomId) {
-        // 进入新房间 → 重置计数
-        t.currentRoomId = detectedRoom
-        t.roomHopCount = 0
+      // 脱困检测
+      if (this.isInsideAnyObstacle(t.sprite.x, t.sprite.y, 0)) {
+        this.unstuckFromObstacles(t)
+        if (this.isInsideAnyObstacle(t.sprite.x, t.sprite.y, 0)) {
+          // 推出失败，进入 blocked 状态等待下一帧重试
+          this.transitionTo(t, 'blocked')
+          return
+        }
       }
 
-      // ★ 卡死检测：连续不动超 1.5s → 强制刷新路点（比 steerToward 内部检测更早介入）
+      // 卡死检测
       const movedThisFrame = Math.abs(t.sprite.x - t.lastStuckX) + Math.abs(t.sprite.y - t.lastStuckY)
       if (movedThisFrame < 2 && !t.arrived) {
         t.stuckTimer += dt
@@ -501,70 +564,140 @@ export class TouristManager {
 
       if (t.stuckTimer > 1.5) {
         t.stuckTimer = 0
-        t.roomHopCount++  // ★ 卡死也计数
-        t.waypoints = [this.pickRandomWaypoint(t.sprite.x, t.sprite.y, t.currentRoomId, t.roomHopCount, true)]
-        t.wpIndex = 0
-        t.arrived = false
-        t.pauseUntil = 0
-        t.shortHopCount = 0
+        this.transitionTo(t, 'blocked')
         return
       }
 
-      // 没有路点 → 生成新漫步目标
-      if (t.waypoints.length === 0 || t.wpIndex >= t.waypoints.length) {
-        t.arrived = true
-        t.pauseUntil = now + 600 + Math.random() * 2000
-        // 在当前位置附近随机选一个点；连续短距跳跃 3 次 → 强制远距离
-        const forceFar = t.shortHopCount >= 3
-        // ★ 同一房间内连续选 2 次路点 → 强制跨房间（在 pickRandomWaypoint 内处理）
-        t.roomHopCount++
-        t.waypoints = [this.pickRandomWaypoint(t.sprite.x, t.sprite.y, t.currentRoomId, t.roomHopCount, forceFar)]
-        t.wpIndex = 0
-        t.originX = t.sprite.x
-        t.originY = t.sprite.y
-        t.travelDist = 0
-        if (forceFar) t.shortHopCount = 0
-        return
-      }
-
-      const wp = t.waypoints[t.wpIndex]
-      const dx = wp.x - t.sprite.x
-      const dy = wp.y - t.sprite.y
-      const dist = Math.sqrt(dx * dx + dy * dy)
-
-      // 累计本次路点的移动距离（用于到达后判断是否短距跳跃）
-      const frameMove = Math.abs(t.sprite.x - t.lastStuckX) + Math.abs(t.sprite.y - t.lastStuckY)
-      t.travelDist += frameMove
-
-      if (dist < 6) {
-        if (!t.arrived) {
-          t.arrived = true
-          t.pauseUntil = now + 500 + Math.random() * 1500
-          // ★ 振荡检测：本次从 origin 到此点累计移动 < 80px → 短距跳跃计数+1
-          const hopDist = Math.sqrt(
-            (t.sprite.x - t.originX) ** 2 + (t.sprite.y - t.originY) ** 2
-          )
-          if (hopDist < 80) {
-            t.shortHopCount++
-          } else {
-            t.shortHopCount = 0
-          }
-          this.scene.tweens.add({
-            targets: t.sprite, y: t.sprite.y - 2, duration: 300, yoyo: true,
-          })
-        } else if (now > t.pauseUntil) {
-          t.arrived = false
-          t.wpIndex++
-        }
-      } else {
-        t.arrived = false
-        this.steerToward(t, dx, dy, dist, dt)
+      // ── 状态分发 ──
+      switch (t.state) {
+        case 'roaming':   this.updateRoaming(t, dt, now);   break
+        case 'traveling': this.updateTraveling(t, dt, now);  break
+        case 'blocked':   this.updateBlocked(t, dt);         break
       }
     })
   }
 
+  // ═════════════════════════════════════════════════════════════════════
+  // roamING：区域内自由漫游
+  // ═════════════════════════════════════════════════════════════════════
+
+  private updateRoaming(t: Tourist, dt: number, now: number): void {
+    // 在区域内待够了 → 切换 traveling，随机选一个其他区域作为目标
+    if (now - t.zoneEnterTime > t.roamDuration) {
+      const zones = ROOMS.filter(r => r.id !== t.currentRoomId)
+      if (zones.length > 0) {
+        t.targetZoneId = zones[Math.floor(Math.random() * zones.length)].id
+        this.transitionTo(t, 'traveling')
+        return
+      }
+    }
+
+    if (t.pauseUntil > now) return
+
+    // 没有路点 → 在当前区域内随机选
+    if (t.waypoints.length === 0 || t.wpIndex >= t.waypoints.length) {
+      t.arrived = true
+      t.pauseUntil = now + 500 + Math.random() * 1500
+      t.waypoints = [this.pickRoamingWaypoint(t.sprite.x, t.sprite.y, t.currentRoomId)]
+      t.wpIndex = 0
+    }
+
+    const wp = t.waypoints[t.wpIndex]
+    const dx = wp.x - t.sprite.x
+    const dy = wp.y - t.sprite.y
+    const dist = Math.sqrt(dx * dx + dy * dy)
+
+    if (dist < 12) {
+      t.arrived = true
+      t.pauseUntil = now + 500 + Math.random() * 1500
+      t.waypoints = []
+      t.wpIndex = 0
+    } else {
+      t.arrived = false
+      this.steerToward(t, dx, dy, dist, dt)
+    }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════
+  // traVELING：沿 BFS 路径前往目标区域
+  // ═════════════════════════════════════════════════════════════════════
+
+  private updateTraveling(t: Tourist, dt: number, now: number): void {
+    if (t.pauseUntil > now) return
+
+    // 没有路点 → 规划 BFS 路径到目标区域
+    if (t.waypoints.length === 0 || t.wpIndex >= t.waypoints.length) {
+      const dest = this.pickPointInRoom(t.targetZoneId!)
+      if (!dest) {
+        this.transitionTo(t, 'roaming')
+        return
+      }
+      const route = this.findPathWaypoints(t.sprite.x, t.sprite.y, dest.x, dest.y)
+      if (route.length === 0) {
+        this.transitionTo(t, 'roaming')
+        return
+      }
+      t.waypoints = route
+      t.wpIndex = 0
+      t.arrived = false
+      return
+    }
+
+    const wp = t.waypoints[t.wpIndex]
+    const dx = wp.x - t.sprite.x
+    const dy = wp.y - t.sprite.y
+    const dist = Math.sqrt(dx * dx + dy * dy)
+
+    if (dist < 12) {
+      if (t.wpIndex < t.waypoints.length - 1) {
+        t.wpIndex++
+      } else {
+        t.waypoints = []
+        t.wpIndex = 0
+      }
+    } else {
+      t.arrived = false
+      this.steerToward(t, dx, dy, dist, dt)
+    }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════
+  // blocked：卡在障碍物里，每帧尝试脱困
+  // ═════════════════════════════════════════════════════════════════════
+
+  private updateBlocked(t: Tourist, _dt: number): void {
+    if (this.isInsideAnyObstacle(t.sprite.x, t.sprite.y, 0)) {
+      this.unstuckFromObstacles(t)
+      return
+    }
+    // 脱困成功 → 恢复之前的状态
+    this.transitionTo(t, t.prevState)
+  }
+
+  /** 在指定区域内选一个可行走的漫游路点（严格限制在室内） */
+  private pickRoamingWaypoint(nearX: number, nearY: number, roomId: string | null): { x: number; y: number } {
+    const room = roomId ? ROOMS.find(r => r.id === roomId) : null
+    const roomCX = room ? (room.x + room.w / 2) * TILE_SIZE : nearX
+    const roomCY = room ? (room.y + room.h / 2) * TILE_SIZE : nearY
+
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const angle = Math.random() * Math.PI * 2
+      const dist = 80 + Math.random() * 300
+      const x = nearX + Math.cos(angle) * dist
+      const y = nearY + Math.sin(angle) * dist
+
+      if (this.findRoomIdAt(x, y) !== roomId) continue
+      if (this.isWallTile(x, y)) continue
+      if (this.isInsideAnyObstacle(x, y, 28)) continue
+      if (!this.hasLineOfSight(nearX, nearY, x, y)) continue
+      return { x: Math.round(x), y: Math.round(y) }
+    }
+
+    // fallback: 房间中心附近的安全点
+    return { x: Math.round(roomCX), y: Math.round(roomCY) }
+  }
+
   /** 脱困：如果游客在障碍物内，沿最近的方向推出（处理所有可能重叠的障碍物）
-   *  推出后还要检查是否撞墙，撞墙则回滚到原位置 */
   private unstuckFromObstacles(t: Tourist): void {
     const touristR = 8
     // 循环处理，直到游客不再与任何障碍物碰撞
@@ -610,6 +743,7 @@ export class TouristManager {
     const toWpY = dy / dist
     const tpx = t.sprite.x, tpy = t.sprite.y
     const touristR = 8
+    const routeMode = t.waypoints.length > 1
 
     // ── 墙壁排斥力（瓦片级）──
     let repelX = 0, repelY = 0
@@ -701,10 +835,11 @@ export class TouristManager {
 
     // ── 动态混合权重：越靠近障碍物/其他游客，排斥力占比越大 ──
     const obsInfluence = closestObsDist < 100 ? Math.max(0, 1 - closestObsDist / 100) : 0
-    const touristInfluence = isStuck
+    const touristInfluence = isStuck || routeMode
       ? 0
       : closestTouristDist < 32 ? Math.max(0, 1 - closestTouristDist / 32) : 0
-    const repelWeight = 0.15 + Math.max(obsInfluence, touristInfluence) * 0.50
+    const baseRepelWeight = routeMode ? 0.05 : 0.15
+    const repelWeight = baseRepelWeight + Math.max(obsInfluence, touristInfluence) * (routeMode ? 0.25 : 0.50)
     const wpWeight = 1 - repelWeight
 
     const repelMag = Math.sqrt(repelX * repelX + repelY * repelY)
@@ -927,6 +1062,17 @@ export class TouristManager {
     return Phaser.Math.Distance.Between(x, y, this.activeEventTourist.sprite.x, this.activeEventTourist.sprite.y) < radius
   }
   getTouristCount(): number { return this.tourists.length }
+
+  getRoomDistribution(): Record<string, number> {
+    const result: Record<string, number> = {}
+    for (const room of ROOMS) result[room.id] = 0
+    result.corridor = 0
+    for (const t of this.tourists) {
+      const roomId = this.findRoomIdAt(t.sprite.x, t.sprite.y)
+      result[roomId ?? 'corridor'] = (result[roomId ?? 'corridor'] ?? 0) + 1
+    }
+    return result
+  }
 
   getAllPositions(): { x: number; y: number; r: number }[] {
     return this.tourists.map(t => ({ x: t.sprite.x, y: t.sprite.y, r: 7 }))
