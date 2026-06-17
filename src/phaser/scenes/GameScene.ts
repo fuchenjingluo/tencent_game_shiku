@@ -607,9 +607,13 @@ export class GameScene extends Phaser.Scene {
       const cfg = NPC_CONFIGS[key]
       if (cfg) {
         const label = this.add.text(px, py - 22, cfg.name, {
-          fontSize: '8px',
-          color: '#d7bd73',
+          fontSize: '10px',
+          color: '#f0d68a',
           fontFamily: 'monospace',
+          stroke: '#0d0a05',
+          strokeThickness: 2,
+          backgroundColor: '#0d0a05bb',
+          padding: { x: 5, y: 2 },
         }).setOrigin(0.5).setDepth(Math.floor(py / 28) + 0.5)
         this.npcLabels.set(key, label)
       }
@@ -655,11 +659,13 @@ export class GameScene extends Phaser.Scene {
 
     // ── 目标点浮动标记 ──
     this.objectiveMarker = this.add.text(0, 0, '', {
-      fontSize: '11px',
-      color: '#d7bd73',
+      fontSize: '13px',
+      color: '#f0d68a',
       fontFamily: 'monospace',
       stroke: '#000000',
-      strokeThickness: 3,
+      strokeThickness: 4,
+      backgroundColor: '#0d0a05dd',
+      padding: { x: 8, y: 4 },
     }).setOrigin(0.5).setDepth(15).setVisible(false)
 
     this.objectiveRing = this.add.arc(0, 0, 18, 0, 360, false, 0xd7bd73, 0)
@@ -855,12 +861,14 @@ export class GameScene extends Phaser.Scene {
       const cx = (r.x + r.w / 2) * TILE_SIZE
       const cy = (r.y + 1) * TILE_SIZE
       const t = this.add.text(cx, cy, r.name, {
-        fontSize: '9px',
-        color: '#d7bd73',
+        fontSize: '13px',
+        color: '#f0d68a',
         fontFamily: 'monospace',
-        stroke: '#1a1208',
-        strokeThickness: 2,
-      }).setOrigin(0.5, 0).setDepth(7).setAlpha(0.7)
+        stroke: '#0d0a05',
+        strokeThickness: 3,
+        backgroundColor: '#0d0a05bb',
+        padding: { x: 8, y: 4 },
+      }).setOrigin(0.5, 0).setDepth(7).setAlpha(0.92)
       this.roomLabels.push(t)
     })
   }
@@ -1277,11 +1285,13 @@ export class GameScene extends Phaser.Scene {
     // 互动提示（反映实际 E 键触发逻辑）
     if (!this.interactHint) {
       this.interactHint = this.add.text(0, 0, '', {
-        fontSize: '9px',
-        color: '#d7bd73',
+        fontSize: '10px',
+        color: '#f0d68a',
         fontFamily: 'monospace',
-        backgroundColor: '#1a1610cc',
-        padding: { x: 4, y: 2 },
+        backgroundColor: '#0d0a05dd',
+        padding: { x: 6, y: 4 },
+        stroke: '#000000',
+        strokeThickness: 2,
       }).setDepth(100)
     }
 
@@ -2014,12 +2024,14 @@ export class GameScene extends Phaser.Scene {
     // 用 objectiveMarker 复用或新建一个Text
     if (!this.corridorHint) {
       this.corridorHint = this.add.text(hintX, hintY, '', {
-        fontSize: '8px',
-        color: '#8fae78',
+        fontSize: '10px',
+        color: '#aacf8e',
         fontFamily: 'monospace',
-        stroke: '#1a1208',
-        strokeThickness: 2,
-      }).setOrigin(0.5).setDepth(16).setAlpha(0.6)
+        stroke: '#0d0a05',
+        strokeThickness: 3,
+        backgroundColor: '#0d0a05bb',
+        padding: { x: 6, y: 3 },
+      }).setOrigin(0.5).setDepth(16).setAlpha(0.85)
     }
     this.corridorHint.setPosition(hintX, hintY)
     this.corridorHint.setText(`${nearest.name}`)

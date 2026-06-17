@@ -260,8 +260,10 @@ export class TouristManager {
     spr.setTint(colors[variant % colors.length])
 
     const label = this.scene.add.text(sx, sy - 16, '🧑 游客', {
-      fontSize: '7px', color: '#aac4cf', fontFamily: 'monospace',
-      stroke: '#000000', strokeThickness: 2,
+      fontSize: '9px', color: '#c8dee8', fontFamily: 'monospace',
+      stroke: '#000000', strokeThickness: 3,
+      backgroundColor: '#0d0a05cc',
+      padding: { x: 4, y: 2 },
     }).setOrigin(0.5).setDepth(Math.floor(sy / 28) + 0.5)
 
     const spawnedRoom = this.findRoomIdAt(sx, sy)
