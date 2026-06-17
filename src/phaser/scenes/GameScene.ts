@@ -249,7 +249,7 @@ export class GameScene extends Phaser.Scene {
     const x = floorCol * TILE_SIZE + TILE_SIZE / 2
     const y = floorRow * TILE_SIZE + TILE_SIZE / 2
     const arch = this.add.image(x, y, `archway_${dir}`)
-    arch.setDepth(2).setAlpha(0.55)
+    arch.setDepth(2).setAlpha(0.75)
   }
 
   private neighbor(mapData: Uint8Array, col: number, row: number, val: number): boolean {
@@ -688,7 +688,7 @@ export class GameScene extends Phaser.Scene {
     const flicker = 1 + Math.sin(this.lightFlicker * 3) * 0.03 * roomDarkness
 
     // 暗色遮罩（暗度越高的房间遮罩越浓）
-    const baseAlpha = 0.55 + roomDarkness * 0.35
+    const baseAlpha = 0.30 + roomDarkness * 0.25
     this.lightLayer.fillStyle(0x060504, baseAlpha * flicker)
     this.lightLayer.fillRect(
       this.cameras.main.scrollX - 4,
@@ -698,7 +698,7 @@ export class GameScene extends Phaser.Scene {
     )
 
     // 玩家周围光照（暗度越高光圈越小）
-    const lightRadius = 110 - roomDarkness * 40
+    const lightRadius = 140 - roomDarkness * 30
     this.lightLayer.fillStyle(0xffffff, 1.0)
     this.lightLayer.fillCircle(this.player.x, this.player.y, lightRadius)
 
