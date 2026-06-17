@@ -158,8 +158,9 @@ export function MiniGameController({ onTaskAdvance, onStatsChange }: MiniGameCon
               border: '1px solid #3d3322',
               borderRadius: 12,
               padding: '28px 32px',
-              maxWidth: 560,
+              maxWidth: 620,
               width: '90%',
+              minWidth: 500,
               boxShadow: '0 0 60px rgba(0,0,0,0.5)',
             }}
           >

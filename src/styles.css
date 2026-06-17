@@ -68,7 +68,7 @@ html, body, #root {
 .loader-bar-inner {
   height: 100%;
   background: var(--gold);
-  transition: width 0.3s;
+  /* transition 由 JS rAF 驱动 */
 }
 
 /* ── 石质面板 ── */

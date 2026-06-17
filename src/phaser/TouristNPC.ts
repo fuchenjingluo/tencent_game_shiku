@@ -26,6 +26,7 @@ const ROOM_EXIT: Record<string, Record<string, { x: number; y: number }>> = {
   'gate-room': {
     'main-hall':    { x: 50 * TILE_SIZE, y: 51.5 * TILE_SIZE },    // 顶部出口 → corridor 7
     'archive-room': { x: 39.5 * TILE_SIZE, y: 56.5 * TILE_SIZE },  // 左侧出口 → corridor 8
+    'power-room':   { x: 62.5 * TILE_SIZE, y: 55.5 * TILE_SIZE },  // 右侧出口 → corridor 10 (维修通道)
   },
   'main-hall': {
     'gate-room':      { x: 50 * TILE_SIZE, y: 43.5 * TILE_SIZE },   // 底部出口 → corridor 7
@@ -46,6 +47,7 @@ const ROOM_EXIT: Record<string, Record<string, { x: number; y: number }>> = {
   },
   'power-room': {
     'equipment-room': { x: 75 * TILE_SIZE, y: 48.5 * TILE_SIZE },    // 顶部出口 → corridor 6
+    'gate-room':      { x: 71.5 * TILE_SIZE, y: 55.5 * TILE_SIZE },  // 左侧出口 → corridor 10 (维修通道)
   },
   'archive-room': {
     'gate-room':  { x: 28.5 * TILE_SIZE, y: 56.5 * TILE_SIZE },      // 右上出口 → corridor 8
@@ -86,6 +88,8 @@ function buildRoomGraph(): Map<string, RoomNode> {
   const c8 = { x: 34 * TILE_SIZE, y: 57 * TILE_SIZE }
   // corridor 9: 壁画区→档案室 左侧纵向通道 (x=14,y=20,w=4,h=26)
   const c9 = { x: 16 * TILE_SIZE, y: 33 * TILE_SIZE }
+  // corridor 10: 供电区→窟前栈道 维修通道 (x=62,y=55,w=10,h=2)
+  const c10 = { x: 67 * TILE_SIZE, y: 56 * TILE_SIZE }
 
   // ── 构建连通关系 ──
   graph.set('gate-room', {
@@ -93,6 +97,7 @@ function buildRoomGraph(): Map<string, RoomNode> {
     neighbors: [
       { targetRoomId: 'main-hall',      waypoints: [c7] },
       { targetRoomId: 'archive-room',   waypoints: [c8] },
+      { targetRoomId: 'power-room',     waypoints: [c10] },
     ],
   })
 
@@ -133,6 +138,7 @@ function buildRoomGraph(): Map<string, RoomNode> {
     roomId: 'power-room', x: power.x, y: power.y,
     neighbors: [
       { targetRoomId: 'equipment-room', waypoints: [c6] },
+      { targetRoomId: 'gate-room',      waypoints: [c10] },
     ],
   })
 
@@ -254,6 +260,37 @@ const TOURIST_EVENT_POOL: TouristEvent[] = [
     failDeltas: { risk: 5, reputation: -1 },
     failMsg: '你没能及时安抚游客。声音在石窟中回荡，监测仪捕捉到壁画表面的细微震动。',
   },
+  // ── 新增事件 ──
+  {
+    id: 'trip_hazard',
+    title: '游客被绊倒',
+    description: '设备间走廊有游客被地面线缆绊倒！设备有损坏风险，游客也可能受伤。',
+    durationMs: 7000,
+    action: 'timing',
+    introLines: [
+      { speaker: '⚠️ 警告', text: '设备间传来闷响——一名游客被地上的监测线缆绊倒了！旁边的除湿机被撞歪。' },
+      { speaker: '⚠️ 警告', text: '前往设备间扶起游客并检查设备——你只有7秒时间避免事态扩大。' },
+    ],
+    successDeltas: { risk: -3, reputation: 4, evidence: 2 },
+    successMsg: '你快步上前扶起游客，迅速检查了设备状态。游客只是轻微擦伤，对你们的快速反应表示感谢。',
+    failDeltas: { risk: 6, budget: -2, reputation: -2 },
+    failMsg: '游客自己爬了起来，但除湿机被撞歪导致湿度读数异常。可能需要额外检修——账单会寄到的。',
+  },
+  {
+    id: 'curious_equipment',
+    title: '游客误触设备',
+    description: '供电区有游客好奇地触碰监测仪器面板——可能误改关键参数！',
+    durationMs: 8000,
+    action: 'chase',
+    introLines: [
+      { speaker: '⚠️ 警告', text: '供电区控制面板上出现异常触控信号！有人正在触碰监测仪器的参数设置界面。' },
+      { speaker: '⚠️ 警告', text: '关键参数一旦被改动，整个石窟的监测数据链将断联。前往供电区制止游客。' },
+    ],
+    successDeltas: { risk: -5, evidence: 3, reputation: 3 },
+    successMsg: '你赶到时游客正尴尬地抽回手。"抱歉，我以为这是介绍石窟历史的触摸屏。"你恢复了所有设置，面板重新进入锁定模式。',
+    failDeltas: { risk: 9, evidence: -4, budget: -2 },
+    failMsg: '你赶到时面板上的湿度阈值已被调至异常区间。需要重新校准所有传感器——这个失误至少浪费了两个工作日的数据。',
+  },
 ]
 
 // ─── 主类 ──────────────────────────────────────────────────────────────────
@@ -275,8 +312,12 @@ export class TouristManager {
   private eventCooldown = 0   // 事件冷却，防止连续触发
   private obstacles: ObstacleData[] = []  // 障碍物数据（用于避让）
 
+  // ★ 全局打乱房间队列 — 确保不同游客拿到不同目的地
+  private roomQueue: string[] = []
+  private roomQueueIdx = 0
+
   onEventTrigger: ((event: TouristEvent) => void) | null = null
-  onEventResolve: ((event: TouristEvent, success: boolean, choiceDeltas?: Partial<Record<string, number>>) => void) | null = null
+  onEventResolve: ((event: TouristEvent, success: boolean, choiceDeltas?: Partial<Record<string, number>>, choiceId?: string) => void) | null = null
 
   constructor(scene: Phaser.Scene, mapData: Uint8Array) {
     this.scene = scene
@@ -409,20 +450,41 @@ export class TouristManager {
     this.tourists.push(tourist)
   }
 
-  /** 从全部窟室中随机选下一个目标（非邻居，全图 BFS 可达） */
+  /** Fisher-Yates 重新打乱 6 个窟室队列 */
+  private reshuffleQueue(): void {
+    const rooms = ['main-hall', 'mural-room', 'rear-cave', 'equipment-room', 'power-room', 'archive-room']
+    for (let i = rooms.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[rooms[i], rooms[j]] = [rooms[j], rooms[i]]
+    }
+    this.roomQueue = rooms
+    this.roomQueueIdx = 0
+  }
+
+  /** 从打乱队列中分配下一个房间（不同游客必然不同） */
   private pickNextRoom(current: string, previous: string, visited: Set<string>): string {
-    // ★ 全部可参观窟室（排除 gate-room 和当前所在）
-    const allRooms = [...this.roomGraph.keys()].filter(
+    // 队列耗尽 → 重新打乱
+    if (this.roomQueueIdx >= this.roomQueue.length) {
+      this.reshuffleQueue()
+    }
+
+    // ★ 从队列当前位置向后扫描，找第一个合法的房间
+    for (let attempt = 0; attempt < this.roomQueue.length; attempt++) {
+      const idx = (this.roomQueueIdx + attempt) % this.roomQueue.length
+      const candidate = this.roomQueue[idx]
+
+      if (candidate !== current && candidate !== previous && !visited.has(candidate)) {
+        // 消费掉这个位置及之前的所有房间（确保不同游客不会拿到同一个）
+        this.roomQueueIdx = idx + 1
+        return candidate
+      }
+    }
+
+    // fallback：所有队列房间都不合法（极少发生）→ 返回任意非当前非 gate 房间
+    const fallback = [...this.roomGraph.keys()].find(
       id => id !== current && id !== previous && id !== 'gate-room'
     )
-
-    if (allRooms.length === 0) return 'gate-room'
-
-    // ★ 优先未参观过的房间
-    const unvisited = allRooms.filter(id => !visited.has(id))
-    const pool = unvisited.length > 0 ? unvisited : allRooms
-
-    return pool[Math.floor(Math.random() * pool.length)]
+    return fallback ?? 'gate-room'
   }
 
   /** BFS 搜索房间 A → B 的最短路径（返回房间 ID 序列，含起点和终点） */
@@ -487,10 +549,16 @@ export class TouristManager {
 
   private despawnAll(): void {
     this.tourists.forEach((t) => {
+      // ★ 竞态保护：先杀掉该精灵上已有的所有 tween，避免回调重叠
+      this.scene.tweens.killTweensOf(t.sprite)
+      this.scene.tweens.killTweensOf(t.nameLabel)
       this.scene.tweens.add({
         targets: [t.sprite, t.nameLabel],
         alpha: 0, duration: 400,
-        onComplete: () => { t.sprite.destroy(); t.nameLabel.destroy() },
+        onComplete: () => {
+          if (t.sprite.active) t.sprite.destroy()
+          if (t.nameLabel.active) t.nameLabel.destroy()
+        },
       })
     })
     this.tourists = []
@@ -500,10 +568,15 @@ export class TouristManager {
   private despawnDone(): void {
     this.tourists = this.tourists.filter((t) => {
       if (t.headingHome && t.currentRoomId === 'gate-room' && t.arrived && this.scene.time.now > t.pauseUntil) {
+        this.scene.tweens.killTweensOf(t.sprite)
+        this.scene.tweens.killTweensOf(t.nameLabel)
         this.scene.tweens.add({
           targets: [t.sprite, t.nameLabel],
           alpha: 0, duration: 600,
-          onComplete: () => { t.sprite.destroy(); t.nameLabel.destroy() },
+          onComplete: () => {
+            if (t.sprite.active) t.sprite.destroy()
+            if (t.nameLabel.active) t.nameLabel.destroy()
+          },
         })
         return false
       }
@@ -519,6 +592,14 @@ export class TouristManager {
     const now = this.scene.time.now
     this.tourists.forEach((t) => {
       if (t.pauseUntil > now) return
+
+      // ★ 活跃事件游客冻结在原地 — 玩家需要赶到现场
+      if (t === this.activeEventTourist && !this.eventResolved) {
+        // 只更新深度，不允许移动
+        t.sprite.setDepth(Math.floor(t.sprite.y / 28))
+        t.nameLabel.setDepth(Math.floor(t.sprite.y / 28) + 0.5)
+        return
+      }
 
       // 动态深度：按 y 坐标排序（top-down 视图约定）
       t.sprite.setDepth(Math.floor(t.sprite.y / 28))
@@ -801,12 +882,21 @@ export class TouristManager {
     for (let attempt = 0; attempt < 15; attempt++) {
       const x = cx + (Math.random() - 0.5) * rangeX * 2
       const y = cy + (Math.random() - 0.5) * rangeY * 2
-      if (!this.isInsideAnyObstacle(x, y, 10)) {
+      // ★ 双重验证：不在障碍物内 + 不在墙体上
+      if (!this.isInsideAnyObstacle(x, y, 10) && !this.isWallTile(x, y)) {
         return { x, y }
       }
     }
-    // 全部失败 — 用房间中心
+    // 全部失败 — 用房间中心（至少中心不会是墙体）
     return { x: cx, y: cy }
+  }
+
+  /** 检查某点是否在墙体瓦片上 */
+  private isWallTile(x: number, y: number): boolean {
+    const col = Math.floor(x / TILE_SIZE)
+    const row = Math.floor(y / TILE_SIZE)
+    if (col < 0 || col >= MAP_COLS || row < 0 || row >= MAP_ROWS) return true
+    return this.mapData[row * MAP_COLS + col] === 2
   }
 
   // ═════════════════════════════════════════════════════════════════════
@@ -853,7 +943,12 @@ export class TouristManager {
   }
   getTouristCount(): number { return this.tourists.length }
 
-  resolveEvent(success: boolean, choiceDeltas?: Partial<Record<string, number>>): void {
+  /** 获取所有游客的当前位置（用于玩家碰撞检测） */
+  getAllPositions(): { x: number; y: number; r: number }[] {
+    return this.tourists.map(t => ({ x: t.sprite.x, y: t.sprite.y, r: 7 }))
+  }
+
+  resolveEvent(success: boolean, choiceDeltas?: Partial<Record<string, number>>, choiceId?: string): void {
     if (!this.activeEvent || this.eventResolved) return
     this.eventResolved = true
     this.eventCooldown = 10000  // 10 秒冷却，防止连续触发
@@ -863,7 +958,7 @@ export class TouristManager {
       this.scene.tweens.killTweensOf(this.activeEventTourist.nameLabel)
       this.activeEventTourist.nameLabel.setAlpha(1)
     }
-    this.onEventResolve?.(this.activeEvent, success, choiceDeltas)
+    this.onEventResolve?.(this.activeEvent, success, choiceDeltas, choiceId)
     this.scene.time.delayedCall(500, () => {
       this.activeEvent = null
       this.activeEventTourist = null

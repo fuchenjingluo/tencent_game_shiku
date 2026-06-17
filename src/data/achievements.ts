@@ -63,10 +63,10 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'ach_perfect',
     name: '零失误',
-    description: '全部 10 次小游戏一次通过',
+    description: '主线全部小游戏一次通过（允许额外支线挑战）',
     category: 'challenge',
     icon: '🎯',
-    detect: (r) => r.minigameAttempts === 10 && r.minigameSuccesses === 10,
+    detect: (r) => r.minigameAttempts >= 10 && r.minigameSuccesses === r.minigameAttempts,
   },
   {
     id: 'ach_speed',
@@ -82,15 +82,15 @@ export const ACHIEVEMENTS: Achievement[] = [
     description: '预算归零后仍完成至少 2 个任务',
     category: 'challenge',
     icon: '💸',
-    detect: (r) => r.stats.budget <= 0,
+    detect: (r) => r.stats.budget <= 0 && r.completedTaskCount >= 2,
   },
   {
     id: 'ach_riskfree',
     name: '滴水不漏',
-    description: '全程风险从未超过 50',
+    description: '始终将风险控制在安全线内（终局风险 ≤ 60 且零风险事件）',
     category: 'challenge',
     icon: '🛡️',
-    detect: (r) => r.stats.risk <= 50 && r.riskEventsTriggered === 0,
+    detect: (r) => r.stats.risk <= 60 && r.riskEventsTriggered === 0,
   },
   {
     id: 'ach_disaster',

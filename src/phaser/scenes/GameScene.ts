@@ -45,6 +45,7 @@ export class GameScene extends Phaser.Scene {
   private arrowGfx!: Phaser.GameObjects.Graphics  // 方向箭头
   private interactHint!: Phaser.GameObjects.Text
   private roomLabels: Phaser.GameObjects.Text[] = []
+  private corridorHint: Phaser.GameObjects.Text | null = null  // 走廊中前方房间名称提示
   // ── 状态 ──
   private inputLocked = false
   private nearNpc: string | null = null
@@ -84,6 +85,7 @@ export class GameScene extends Phaser.Scene {
   private activeSideQuest: string | null = null
   private touristNPCInteract: Phaser.GameObjects.Sprite | null = null
   private touristNPCLabel: Phaser.GameObjects.Text | null = null
+  private busUnsubs: (() => void)[] = []  // ★ bus.on() 返回的取消订阅函数，shutdown 时清理
 
   constructor() {
     super({ key: 'GameScene' })
@@ -126,6 +128,9 @@ export class GameScene extends Phaser.Scene {
     // 清理回调
     this.events.once('shutdown', () => {
       this.bounceTween?.destroy()
+      // ★ 清理所有事件总线监听器 — 防止 stale handler 访问已销毁的 scene
+      this.busUnsubs.forEach(fn => fn())
+      this.busUnsubs = []
     })
 
     bus.emit('game:ready')
@@ -156,6 +161,9 @@ export class GameScene extends Phaser.Scene {
   private buildTileMap(mapData: Uint8Array) {
     this.walls = this.physics.add.staticGroup()
 
+    // 预计算走廊地板标记：用于区分房间与走廊的地板tile
+    const isCorridorFloor = this.buildCorridorMask(mapData)
+
     for (let row = 0; row < MAP_ROWS; row++) {
       for (let col = 0; col < MAP_COLS; col++) {
         const tile = mapData[row * MAP_COLS + col]
@@ -163,9 +171,15 @@ export class GameScene extends Phaser.Scene {
         const y = row * TILE_SIZE + TILE_SIZE / 2
 
         if (tile === 1) {
-          // 地板（6种变体）
-          const v = ((col * 3 + row * 7) % 6)
-          this.add.image(x, y, `floor_${v}`)
+          if (isCorridorFloor[row * MAP_COLS + col]) {
+            // 走廊专用地板变体（更暗更磨损）
+            const v = ((col * 3 + row * 7) % 3)
+            this.add.image(x, y, `corridor_floor_${v}`)
+          } else {
+            // 房间地板
+            const v = ((col * 3 + row * 7) % 6)
+            this.add.image(x, y, `floor_${v}`)
+          }
         } else if (tile === 2) {
           // autotile 墙体
           this.placeAutoTile(col, row, mapData, x, y)
@@ -173,8 +187,66 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // ★ 拱门入口标记：房间-走廊边界放置
+    this.placeArchways(mapData)
+
     // 装饰层（随机散布在房间地板上）
     this.placeDecorations(mapData)
+  }
+
+  /** 构建"该地板tile在走廊中且不在任何房间内"的标记数组 */
+  private buildCorridorMask(mapData: Uint8Array): boolean[] {
+    const mask = new Array<boolean>(MAP_COLS * MAP_ROWS).fill(false)
+    // 走廊区域标记
+    for (const c of CORRIDORS) {
+      for (let row = c.y; row < c.y + c.h && row < MAP_ROWS; row++) {
+        for (let col = c.x; col < c.x + c.w && col < MAP_COLS; col++) {
+          mask[row * MAP_COLS + col] = true
+        }
+      }
+    }
+    // ★ 排除房间内部（走廊可能与房间边界重叠）
+    for (const r of ROOMS) {
+      for (let row = r.y + 1; row < r.y + r.h - 1 && row < MAP_ROWS; row++) {
+        for (let col = r.x + 1; col < r.x + r.w - 1 && col < MAP_COLS; col++) {
+          mask[row * MAP_COLS + col] = false
+        }
+      }
+    }
+    return mask
+  }
+
+  /** 在房间-走廊边界放置拱门入口标记 */
+  private placeArchways(mapData: Uint8Array) {
+    for (const r of ROOMS) {
+      const innerLX = r.x + 1
+      const innerRX = r.x + r.w - 2
+      const innerTY = r.y + 1
+      const innerBY = r.y + r.h - 2
+
+      // 四边扫描：房间内部地板tile如果紧邻走廊tile → 放置拱门
+      for (let col = innerLX; col <= innerRX; col++) {
+        this.tryPlaceArchway(col, innerTY, col, innerTY - 1, mapData, 'top')
+        this.tryPlaceArchway(col, innerBY, col, innerBY + 1, mapData, 'bottom')
+      }
+      for (let row = innerTY; row <= innerBY; row++) {
+        this.tryPlaceArchway(innerLX, row, innerLX - 1, row, mapData, 'left')
+        this.tryPlaceArchway(innerRX, row, innerRX + 1, row, mapData, 'right')
+      }
+    }
+  }
+
+  private tryPlaceArchway(floorCol: number, floorRow: number, neighborCol: number, neighborRow: number, mapData: Uint8Array, dir: string) {
+    if (neighborCol < 0 || neighborCol >= MAP_COLS || neighborRow < 0 || neighborRow >= MAP_ROWS) return
+    // 仅在房间地板邻接走廊地板处放置
+    if (mapData[floorRow * MAP_COLS + floorCol] !== 1) return
+    if (mapData[neighborRow * MAP_COLS + neighborCol] !== 1) return
+    // 确认邻居在走廊且不在房间内部
+    if (this.getRoomAt(neighborCol, neighborRow)) return
+    const x = floorCol * TILE_SIZE + TILE_SIZE / 2
+    const y = floorRow * TILE_SIZE + TILE_SIZE / 2
+    const arch = this.add.image(x, y, `archway_${dir}`)
+    arch.setDepth(2).setAlpha(0.55)
   }
 
   private neighbor(mapData: Uint8Array, col: number, row: number, val: number): boolean {
@@ -728,6 +800,12 @@ export class GameScene extends Phaser.Scene {
       ctx.fillRect((spr.x / TILE_SIZE) * scale - 1, (spr.y / TILE_SIZE) * scale - 1, 3, 3)
     })
 
+    // ★ 障碍物（浅灰色小点，帮助玩家了解房间内行走空间）
+    ctx.fillStyle = 'rgba(90,80,65,0.4)'
+    this.obstacleDataList.forEach((ob) => {
+      ctx.fillRect((ob.x / TILE_SIZE) * scale - 1, (ob.y / TILE_SIZE) * scale - 1, 2, 2)
+    })
+
     // 边框
     ctx.strokeStyle = '#8b7355'
     ctx.lineWidth = 1
@@ -769,9 +847,11 @@ export class GameScene extends Phaser.Scene {
       const cy = (r.y + 1) * TILE_SIZE
       const t = this.add.text(cx, cy, r.name, {
         fontSize: '9px',
-        color: '#8b7355',
+        color: '#d7bd73',
         fontFamily: 'monospace',
-      }).setOrigin(0.5, 0).setDepth(7).setAlpha(0.55)
+        stroke: '#1a1208',
+        strokeThickness: 2,
+      }).setOrigin(0.5, 0).setDepth(7).setAlpha(0.7)
       this.roomLabels.push(t)
     })
   }
@@ -781,11 +861,12 @@ export class GameScene extends Phaser.Scene {
   // ═════════════════════════════════════════════════════════════════════
 
   private setupBusListeners() {
-    bus.on('ui:lock-input', (locked) => { this.inputLocked = locked })
-    bus.on('game:resume', () => { this.inputLocked = false })
-    bus.on('ui:dialog-closed', () => { this.inputLocked = false })
-    bus.on('ui:result-closed', () => { this.inputLocked = false })
-    bus.on('ui:choice-made', ({ style }) => {
+    const un = this.busUnsubs
+    un.push(bus.on('ui:lock-input', (locked) => { this.inputLocked = locked }))
+    un.push(bus.on('game:resume', () => { this.inputLocked = false }))
+    un.push(bus.on('ui:dialog-closed', () => { this.inputLocked = false }))
+    un.push(bus.on('ui:result-closed', () => { this.inputLocked = false }))
+    un.push(bus.on('ui:choice-made', ({ style }) => {
       // ── P2#10: 风格追踪 — 连续同风格3+次触发协同奖励 ──
       if (style === this.lastChoiceStyle) {
         this.styleStreak++
@@ -805,28 +886,28 @@ export class GameScene extends Phaser.Scene {
         this.lastChoiceStyle = style
         this.styleStreak = 1
       }
-    })
-    bus.on('stats:update', (s) => { this.stats = s })
+    }))
+    un.push(bus.on('stats:update', (s) => { this.stats = s }))
 
     // HUD 挂载时请求当前目标（修复从转化面板等返回后目标栏丢失）
-    bus.on('objective:request', () => {
+    un.push(bus.on('objective:request', () => {
       bus.emit('objective:changed', this.currentObjective)
-    })
+    }))
 
     // 接收 React 层设置的 flags
-    bus.on('flags:set', ({ key, value }) => {
+    un.push(bus.on('flags:set', ({ key, value }) => {
       this.gameFlags[key] = value
       // P0: 游客密度随 flag 变化
       if (key === 'free_flow' || key === 'batch_flow' || key === 'cave_closure') {
         this.syncTouristDensity()
       }
-    })
+    }))
 
-    bus.on('ui:risk-event-closed', () => {
+    un.push(bus.on('ui:risk-event-closed', () => {
       this.inputLocked = false
-    })
+    }))
 
-    bus.on('task:completed', ({ taskId }) => {
+    un.push(bus.on('task:completed', ({ taskId }) => {
       this.completedTasks.add(taskId)
       this.activeTask = null
       // 完成特效
@@ -863,31 +944,31 @@ export class GameScene extends Phaser.Scene {
           bus.emit('game:over', { stats: this.stats, flags: { ...this.gameFlags } })
         })
       }
-    })
+    }))
 
     // 加载存档时恢复 flags
-    bus.on('game:load-save', (save) => {
+    un.push(bus.on('game:load-save', (save) => {
       if (save.gameFlags) {
         this.gameFlags = { ...save.gameFlags }
       }
       this.time.delayedCall(300, () => this.updateObjective())
-    })
+    }))
 
     // 挑战模式设置
-    bus.on('challenge:mode', (mode: string) => {
+    un.push(bus.on('challenge:mode', (mode: string) => {
       this.challengeMode = mode
       if (mode === 'speedrun') {
         this.speedrunStartTime = this.time.now
         this.setupSpeedrunTimer()
       }
-    })
+    }))
 
     // ── 游客事件监听 ──
-    bus.on('tourist:event-resolve', ({ eventId, success, choiceDeltas }) => {
+    un.push(bus.on('tourist:event-resolve', ({ eventId, success, choiceId, choiceDeltas }) => {
       if (this.touristManager) {
-        this.touristManager.resolveEvent(success, choiceDeltas)
+        this.touristManager.resolveEvent(success, choiceDeltas, choiceId)
       }
-    })
+    }))
   }
 
   // ═════════════════════════════════════════════════════════════════════
@@ -921,7 +1002,7 @@ export class GameScene extends Phaser.Scene {
       })
     }
 
-    this.touristManager.onEventResolve = (event, success, choiceDeltas) => {
+    this.touristManager.onEventResolve = (event, success, choiceDeltas, choiceId) => {
       // choiceDeltas 来自 ChoicePanel 的选择，优先使用；否则用事件默认值
       const deltas = choiceDeltas ?? (success ? event.successDeltas : event.failDeltas)
       Object.entries(deltas).forEach(([k, v]) => {
@@ -930,8 +1011,15 @@ export class GameScene extends Phaser.Scene {
       })
       bus.emit('stats:update', { ...this.stats })
       this.time.delayedCall(300, () => this.updateObjective())
-      const msg = success ? event.successMsg : event.failMsg
-      const speaker = success ? '✅ 事件解决' : '⚠️ 事件失控'
+      // ★ 修复: 根据 choiceId 决定对话文本，不再仅靠 success boolean
+      const msg = choiceId === 'tourist_ignore'
+        ? '你选择在暗处观察游客的一举一动。这是文物保护中重要的"被动干预"——有时候，等待比干涉更有力量。你记录了关键行为数据。'
+        : choiceId === 'tourist_harsh'
+          ? '你走上前，语气严厉但有理有据。游客被你的专业态度震慑住了——虽然他们面色不悦，但文物保护条例就是最高准则。'
+          : event.successMsg
+      const speaker = choiceId === 'tourist_ignore' ? '👁 观察记录'
+        : choiceId === 'tourist_harsh' ? '⚠️ 严厉干预'
+        : '✅ 事件解决'
       this.time.delayedCall(400, () => {
         bus.emit('open:dialog', {
           lines: [{ speaker, text: msg }],
@@ -1036,6 +1124,7 @@ export class GameScene extends Phaser.Scene {
 
   update(_time: number, delta: number) {
     this.handleMovement(delta)
+    this.resolveTouristCollision()
     this.updateDepthSorting()
     this.checkProximity()
     this.handleInteract()
@@ -1046,6 +1135,7 @@ export class GameScene extends Phaser.Scene {
     this.updateCameraZoom()
     this.updatePlayerBounce(delta)
     this.updateRoomLabelHighlights()
+    this.updateCorridorHint()
     this.updateObjectiveMarker()
     this.updateRiskOverlay(delta)
     this.updateAmbiance(delta)
@@ -1884,6 +1974,49 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  /** 走廊中显示前方房间名称提示 */
+  private updateCorridorHint() {
+    const col = Math.floor(this.player.x / TILE_SIZE)
+    const row = Math.floor(this.player.y / TILE_SIZE)
+    const roomId = this.getRoomAt(col, row)
+    // 在房间内不显示走廊提示
+    if (roomId) {
+      this.corridorHint?.setVisible(false)
+      return
+    }
+
+    // 查找最近的房间
+    let nearest: { id: string; name: string; x: number; y: number } | null = null
+    let nearestDist = Infinity
+    for (const r of ROOMS) {
+      const cx = (r.x + r.w / 2) * TILE_SIZE
+      const cy = (r.y + r.h / 2) * TILE_SIZE
+      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, cx, cy)
+      if (d < nearestDist) {
+        nearestDist = d
+        nearest = { id: r.id, name: r.name, x: cx, y: cy }
+      }
+    }
+    if (!nearest) return
+
+    // 显示提示文本（"→ 房间名"），跟随玩家位置偏移
+    const hintX = this.player.x + (this.player.body?.velocity.x ?? 0) * 0.6
+    const hintY = this.player.y - 28
+    // 用 objectiveMarker 复用或新建一个Text
+    if (!this.corridorHint) {
+      this.corridorHint = this.add.text(hintX, hintY, '', {
+        fontSize: '8px',
+        color: '#8fae78',
+        fontFamily: 'monospace',
+        stroke: '#1a1208',
+        strokeThickness: 2,
+      }).setOrigin(0.5).setDepth(16).setAlpha(0.6)
+    }
+    this.corridorHint.setPosition(hintX, hintY)
+    this.corridorHint.setText(`${nearest.name}`)
+    this.corridorHint.setVisible(true)
+  }
+
   // ═════════════════════════════════════════════════════════════════════
   // 目标点浮动标记（主地图上的可视化指引）
   // ═════════════════════════════════════════════════════════════════════
@@ -2032,6 +2165,31 @@ export class GameScene extends Phaser.Scene {
   // ═════════════════════════════════════════════════════════════════════
   // 游客系统更新
   // ═════════════════════════════════════════════════════════════════════
+
+  /** 玩家-游客软碰撞：玩家不能穿过游客 */
+  private resolveTouristCollision(): void {
+    const positions = this.touristManager?.getAllPositions()
+    if (!positions || positions.length === 0) return
+
+    const playerR = 6
+    const px = this.player.x
+    const py = this.player.y
+
+    for (const tp of positions) {
+      const dx = px - tp.x
+      const dy = py - tp.y
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      const minDist = playerR + tp.r
+
+      if (dist < minDist && dist > 0.01) {
+        // 推出到安全距离
+        const pushX = (dx / dist) * (minDist - dist)
+        const pushY = (dy / dist) * (minDist - dist)
+        this.player.x += pushX
+        this.player.y += pushY
+      }
+    }
+  }
 
   private updateTourists(delta: number) {
     if (this.touristManager) {

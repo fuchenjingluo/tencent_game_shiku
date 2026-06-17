@@ -20,7 +20,11 @@ class TypedEventBus {
 
   once<K extends BusEventKey>(event: K, handler: Handler<K>): void {
     const wrapper = (...args: any[]) => {
-      ;(handler as any)(...args)
+      try {
+        ;(handler as any)(...args)
+      } catch (err) {
+        console.error(`[EventBus] once handler for "${event}" threw:`, err)
+      }
       this.off(event, wrapper as any)
     }
     this.on(event, wrapper as any)
@@ -36,7 +40,14 @@ class TypedEventBus {
   ): void {
     const handlers = this.listeners.get(event)
     if (!handlers) return
-    handlers.forEach((h) => h(...(args as any[])))
+    for (const h of handlers) {
+      try {
+        h(...(args as any[]))
+      } catch (err) {
+        console.error(`[EventBus] handler for "${event}" threw:`, err)
+        // ★ 不中断：继续执行其他 handler
+      }
+    }
   }
 
   clear(event?: BusEventKey): void {

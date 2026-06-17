@@ -9,7 +9,7 @@ export const INITIAL_STATS = {
   reputation: 40,
   risk: 55,
   evidence: 10,
-  budget: 8,   // 6→8: 纯专业路线可在 Task4 前维持正预算，之后需借助转化系统或混合选择
+  budget: 12,  // 8→12: 纯专业路线5任务全部完成所需最低预算
 }
 
 export const TASKS: Task[] = [

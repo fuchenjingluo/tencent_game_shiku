@@ -431,6 +431,92 @@ function drawWoodenRailing(ctx: CanvasRenderingContext2D, seed: number) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// 走廊专用地板 ×3（更暗、更磨损，视觉区分走廊与房间）
+// ═══════════════════════════════════════════════════════════════════════════
+
+function drawCorridorFloor(ctx: CanvasRenderingContext2D, seed: number) {
+  resetSeed(seed)
+  const r = 68 + Math.floor(rand() * 10) - 5
+  const g = 53 + Math.floor(rand() * 8) - 4
+  const b = 33 + Math.floor(rand() * 8) - 4
+  ctx.fillStyle = `rgb(${r},${g},${b})`
+  ctx.fillRect(0, 0, T, T)
+  // 更密集的磨损
+  ctx.globalAlpha = 0.3
+  for (let i = 0; i < 10; i++) {
+    const sx = Math.floor(rand() * T)
+    const sy = Math.floor(rand() * T)
+    ctx.fillStyle = rand() > 0.5 ? '#4a3a28' : '#3a2a18'
+    ctx.fillRect(sx, sy, 1 + Math.floor(rand() * 2), 1 + Math.floor(rand() * 2))
+  }
+  // 更多裂纹（走廊利用率高）
+  if (rand() < 0.5) {
+    ctx.globalAlpha = 0.45
+    ctx.strokeStyle = '#1a1008'
+    ctx.lineWidth = 0.6
+    ctx.beginPath()
+    ctx.moveTo(3 + rand() * 10, 3 + rand() * 4)
+    ctx.lineTo(3 + rand() * 10, 7 + rand() * 4)
+    ctx.stroke()
+  }
+  ctx.globalAlpha = 1
+  ctx.strokeStyle = hexToRgba('#1a1208', 0.4)
+  ctx.lineWidth = 0.5
+  ctx.strokeRect(0.5, 0.5, T - 1, T - 1)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 拱门标识 ×4（房间-走廊入口标记，方向：上下左右）
+// ═══════════════════════════════════════════════════════════════════════════
+
+function drawArchway(ctx: CanvasRenderingContext2D, direction: string) {
+  ctx.clearRect(0, 0, T, T)
+  const stone = '#6a5638'
+  const highlight = '#7d6536'
+  const shadow = '#3a2f1f'
+
+  // 基底暗色（拱门内的地板比普通地板略深）
+  ctx.fillStyle = '#3a2a1a'
+  ctx.fillRect(0, 0, T, T)
+
+  // 两排立柱
+  ctx.fillStyle = stone
+  if (direction === 'top' || direction === 'bottom') {
+    ctx.fillRect(1, 2, 3, 12)   // 左柱
+    ctx.fillRect(12, 2, 3, 12)  // 右柱
+    ctx.fillStyle = highlight
+    ctx.fillRect(1, 2, 1, 12)   // 左柱高光
+    ctx.fillRect(12, 2, 1, 12)  // 右柱高光
+    ctx.fillStyle = shadow
+    ctx.fillRect(3, 2, 1, 12)
+    ctx.fillRect(14, 2, 1, 12)
+  } else {
+    ctx.fillRect(2, 1, 12, 3)   // 上柱
+    ctx.fillRect(2, 12, 12, 3)  // 下柱
+    ctx.fillStyle = highlight
+    ctx.fillRect(2, 1, 12, 1)
+    ctx.fillRect(2, 12, 12, 1)
+    ctx.fillStyle = shadow
+    ctx.fillRect(2, 3, 12, 1)
+    ctx.fillRect(2, 14, 12, 1)
+  }
+
+  // 拱顶弧线（金色装饰）
+  ctx.fillStyle = hexToRgba('#caa85f', 0.35)
+  ctx.beginPath()
+  if (direction === 'top') {
+    ctx.arc(8, 6, 5, Math.PI, 0)
+  } else if (direction === 'bottom') {
+    ctx.arc(8, 10, 5, 0, Math.PI)
+  } else if (direction === 'left') {
+    ctx.arc(6, 8, 5, Math.PI * 0.5, Math.PI * 1.5)
+  } else {
+    ctx.arc(10, 8, 5, Math.PI * 1.5, Math.PI * 0.5)
+  }
+  ctx.fill()
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // 伪3D实体障碍物 ×7（顶光照，左亮右暗，底边阴影）
 // 尺寸大于 16×16，玩家不可穿过
 // ═══════════════════════════════════════════════════════════════════════════
@@ -888,213 +974,135 @@ function drawParticle(canvas: HTMLCanvasElement) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 纹理注册
+// 分帧执行工具 — setTimeout macrotask 确保浏览器在各阶段间渲染
+//
+// 关键决策: 不用 requestAnimationFrame 做 yield，因为：
+//   1. rAF 回调注册顺序受 Phaser 游戏循环 rAF 影响，时序不可控
+//   2. rAF Promise resolve 触发微任务，导致多阶段 async 续执行在同一帧完成
+//   3. setTimeout(fn, 0) 创建 macrotask，每个 task 之间浏览器必定渲染
+//
+// 工作流程: 
+//   chunk 工作 → report → setTimeout(next, 32) → 浏览器渲染 1-2 帧 → next chunk
+//   每阶段 setTimeout(200) 留出宏任务间隙，main.tsx 的 rAF 动画循环
+//   平滑插值 targetProgress → currentProgress，保证每帧视觉更新
 // ═══════════════════════════════════════════════════════════════════════════
 
-export function generateTextures(scene: Phaser.Scene) {
-  // 地面 ×6
+function delay(ms: number): Promise<void> {
+  return new Promise(r => setTimeout(r, ms))
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 纹理注册（异步分帧版本 — setTimeout 宏任务间隔）
+// 每阶段用 setTimeout(200) 留出宏任务间隙，main.tsx 通过 rAF 动画循环
+// 平滑插值 targetProgress → currentProgress，保证每帧都有视觉更新
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function generateTexturesAsync(scene: Phaser.Scene, report?: (pct: number, tip: string) => void, bootGen?: number) {
+  // ★ 代际检查辅助函数：如果 scene 所属的 boot 周期已过期，提前终止
+  const isLive = () => {
+    if (bootGen === undefined) return true
+    const current = (window as any).getBootGeneration?.() ?? bootGen
+    const live = bootGen === current
+    if (!live) console.log('[gen] isLive=false, bootGen=', bootGen, 'current=', current)
+    return live
+  }
+
+  console.log('[gen] generateTexturesAsync start, bootGen=', bootGen, 'current=', (window as any).getBootGeneration?.())
+
+  // ═══ 阶段1: 地面 + 走廊地板 + 拱门 + 墙体 + 阴影 ═══
   for (let v = 0; v < 6; v++) {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
+    const c = document.createElement('canvas'); c.width = T; c.height = T
     drawFloorVariant(c.getContext('2d')!, v * 137 + 1)
     scene.textures.addCanvas(`floor_${v}`, c)
   }
-
-  // 墙体 fill
-  {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawWallFill(c.getContext('2d')!)
-    scene.textures.addCanvas('wall', c)
+  for (let v = 0; v < 3; v++) {
+    const c = document.createElement('canvas'); c.width = T; c.height = T
+    drawCorridorFloor(c.getContext('2d')!, v * 53 + 71)
+    scene.textures.addCanvas(`corridor_floor_${v}`, c)
   }
-  // 墙体各边
-  for (const side of ['top', 'bottom', 'left', 'right']) {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawWallEdge(c.getContext('2d')!, side)
-    scene.textures.addCanvas(`wall_${side}`, c)
-  }
-  // 墙角
-  for (const corner of ['tl', 'tr', 'bl', 'br']) {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawCorner(c.getContext('2d')!, corner)
-    scene.textures.addCanvas(`corner_${corner}`, c)
-  }
-  // 柱子
-  {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawPillar(c.getContext('2d')!)
-    scene.textures.addCanvas('pillar', c)
-  }
-
-  // 阴影 ×4
   for (const dir of ['top', 'bottom', 'left', 'right']) {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawShadow(c.getContext('2d')!, dir)
-    scene.textures.addCanvas(`shadow_${dir}`, c)
+    const c = document.createElement('canvas'); c.width = T; c.height = T
+    drawArchway(c.getContext('2d')!, dir)
+    scene.textures.addCanvas(`archway_${dir}`, c)
   }
+  { const c = document.createElement('canvas'); c.width = T; c.height = T; drawWallFill(c.getContext('2d')!); scene.textures.addCanvas('wall', c) }
+  for (const side of ['top', 'bottom', 'left', 'right']) {
+    const c = document.createElement('canvas'); c.width = T; c.height = T; drawWallEdge(c.getContext('2d')!, side); scene.textures.addCanvas(`wall_${side}`, c)
+  }
+  for (const corner of ['tl', 'tr', 'bl', 'br']) {
+    const c = document.createElement('canvas'); c.width = T; c.height = T; drawCorner(c.getContext('2d')!, corner); scene.textures.addCanvas(`corner_${corner}`, c)
+  }
+  { const c = document.createElement('canvas'); c.width = T; c.height = T; drawPillar(c.getContext('2d')!); scene.textures.addCanvas('pillar', c) }
+  for (const dir of ['top', 'bottom', 'left', 'right']) {
+    const c = document.createElement('canvas'); c.width = T; c.height = T; drawShadow(c.getContext('2d')!, dir); scene.textures.addCanvas(`shadow_${dir}`, c)
+  }
+  console.log('[gen] 阶段1 完成(地面/墙体), setTimeout(200)...')
+  await delay(200)
+  if (!isLive()) return
+  report?.(28, '生成地面与墙体纹理…')
 
-  // 装饰 ×5
-  {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawMoss(c.getContext('2d')!, 99)
-    scene.textures.addCanvas('decor_moss', c)
-  }
-  {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawRubble(c.getContext('2d')!, 55)
-    scene.textures.addCanvas('decor_rubble', c)
-  }
-  {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawCrack(c.getContext('2d')!, 77)
-    scene.textures.addCanvas('decor_crack', c)
-  }
-  {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawWaterStain(c.getContext('2d')!, 33)
-    scene.textures.addCanvas('decor_water', c)
-  }
-  {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawGlyph(c.getContext('2d')!, 44)
-    scene.textures.addCanvas('decor_glyph', c)
-  }
+  // ═══ 阶段2: 装饰 ×5 + 石窟寺主题装饰 ×8 ═══
+  { const c = document.createElement('canvas'); c.width = T; c.height = T; drawMoss(c.getContext('2d')!, 99); scene.textures.addCanvas('decor_moss', c) }
+  { const c = document.createElement('canvas'); c.width = T; c.height = T; drawRubble(c.getContext('2d')!, 55); scene.textures.addCanvas('decor_rubble', c) }
+  { const c = document.createElement('canvas'); c.width = T; c.height = T; drawCrack(c.getContext('2d')!, 77); scene.textures.addCanvas('decor_crack', c) }
+  { const c = document.createElement('canvas'); c.width = T; c.height = T; drawWaterStain(c.getContext('2d')!, 33); scene.textures.addCanvas('decor_water', c) }
+  { const c = document.createElement('canvas'); c.width = T; c.height = T; drawGlyph(c.getContext('2d')!, 44); scene.textures.addCanvas('decor_glyph', c) }
+  { const c = document.createElement('canvas'); c.width = T; c.height = T; drawMuralFragment(c.getContext('2d')!, 201); scene.textures.addCanvas('decor_mural', c) }
+  { const c = document.createElement('canvas'); c.width = T; c.height = T; drawBuddhaStatue(c.getContext('2d')!, 202); scene.textures.addCanvas('decor_statue', c) }
+  { const c = document.createElement('canvas'); c.width = T; c.height = T; drawStoneLantern(c.getContext('2d')!, 203); scene.textures.addCanvas('decor_lantern', c) }
+  { const c = document.createElement('canvas'); c.width = T; c.height = T; drawStoneTablet(c.getContext('2d')!, 204); scene.textures.addCanvas('decor_stele', c) }
+  { const c = document.createElement('canvas'); c.width = T; c.height = T; drawCaveFormation(c.getContext('2d')!, 205); scene.textures.addCanvas('decor_cave_form', c) }
+  { const c = document.createElement('canvas'); c.width = T; c.height = T; drawEquipmentShelf(c.getContext('2d')!, 206); scene.textures.addCanvas('decor_shelf', c) }
+  { const c = document.createElement('canvas'); c.width = T; c.height = T; drawIncenseBurner(c.getContext('2d')!, 207); scene.textures.addCanvas('decor_censer', c) }
+  { const c = document.createElement('canvas'); c.width = T; c.height = T; drawWoodenRailing(c.getContext('2d')!, 208); scene.textures.addCanvas('decor_railing', c) }
+  console.log('[gen] 阶段2 完成(装饰), setTimeout(200)...')
+  await delay(200)
+  if (!isLive()) return
+  report?.(45, '生成石窟环境装饰…')
 
-  // 玩家
-  {
-    const c = document.createElement('canvas')
-    drawPlayerSprite(c)
-    scene.textures.addCanvas('player', c)
-  }
-
-  // NPC
+  // ═══ 阶段3: 角色 + 交互点 ═══
+  { const c = document.createElement('canvas'); drawPlayerSprite(c); scene.textures.addCanvas('player', c) }
   const npcColors: Record<string, string> = {
-    task1_npc: '#7a5c3a',
-    task2_npc: '#3a6b7a',
-    task3_npc: '#7a3a3a',
-    task4_npc: '#6b7a3a',
-    task5_npc: '#5c3a7a',
+    task1_npc: '#7a5c3a', task2_npc: '#3a6b7a', task3_npc: '#7a3a3a',
+    task4_npc: '#6b7a3a', task5_npc: '#5c3a7a',
   }
-  Object.entries(npcColors).forEach(([key, color]) => {
-    const c = document.createElement('canvas')
-    drawNPC(c, color)
-    scene.textures.addCanvas(key, c)
-  })
+  Object.entries(npcColors).forEach(([key, color]) => { const c = document.createElement('canvas'); drawNPC(c, color); scene.textures.addCanvas(key, c) })
+  { const c = document.createElement('canvas'); drawInteractPoint(c); scene.textures.addCanvas('interact_point', c) }
+  console.log('[gen] 阶段3 完成(角色), setTimeout(200)...')
+  await delay(200)
+  if (!isLive()) return
+  report?.(62, '生成角色与交互点…')
 
-  // 交互点
-  {
-    const c = document.createElement('canvas')
-    drawInteractPoint(c)
-    scene.textures.addCanvas('interact_point', c)
-  }
+  // ═══ 阶段4: 伪3D实体 (前4) ═══
+  { const c = document.createElement('canvas'); c.width = 28; c.height = 36; drawBuddhaStatue3D(c.getContext('2d')!, 301); scene.textures.addCanvas('obj_buddha', c) }
+  { const c = document.createElement('canvas'); c.width = 24; c.height = 34; drawGuardianStatue3D(c.getContext('2d')!, 302); scene.textures.addCanvas('obj_guardian', c) }
+  { const c = document.createElement('canvas'); c.width = 24; c.height = 22; drawMonitorDevice3D(c.getContext('2d')!, 303); scene.textures.addCanvas('obj_monitor', c) }
+  { const c = document.createElement('canvas'); c.width = 14; c.height = 36; drawStonePillar3D(c.getContext('2d')!, 304); scene.textures.addCanvas('obj_pillar', c) }
+  console.log('[gen] 阶段4 完成(3D雕像1), setTimeout(200)...')
+  await delay(200)
+  if (!isLive()) return
+  report?.(78, '生成3D雕像…')
 
-  // 石窟寺主题装饰 ×8
-  {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawMuralFragment(c.getContext('2d')!, 201)
-    scene.textures.addCanvas('decor_mural', c)
-  }
-  {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawBuddhaStatue(c.getContext('2d')!, 202)
-    scene.textures.addCanvas('decor_statue', c)
-  }
-  {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawStoneLantern(c.getContext('2d')!, 203)
-    scene.textures.addCanvas('decor_lantern', c)
-  }
-  {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawStoneTablet(c.getContext('2d')!, 204)
-    scene.textures.addCanvas('decor_stele', c)
-  }
-  {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawCaveFormation(c.getContext('2d')!, 205)
-    scene.textures.addCanvas('decor_cave_form', c)
-  }
-  {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawEquipmentShelf(c.getContext('2d')!, 206)
-    scene.textures.addCanvas('decor_shelf', c)
-  }
-  {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawIncenseBurner(c.getContext('2d')!, 207)
-    scene.textures.addCanvas('decor_censer', c)
-  }
-  {
-    const c = document.createElement('canvas')
-    c.width = T; c.height = T
-    drawWoodenRailing(c.getContext('2d')!, 208)
-    scene.textures.addCanvas('decor_railing', c)
-  }
+  // ═══ 阶段5: 伪3D实体 (后3) + 粒子 ═══
+  { const c = document.createElement('canvas'); c.width = 36; c.height = 26; drawGate3D(c.getContext('2d')!, 305); scene.textures.addCanvas('obj_gate', c) }
+  { const c = document.createElement('canvas'); c.width = 30; c.height = 22; drawAltarTable3D(c.getContext('2d')!, 306); scene.textures.addCanvas('obj_altar', c) }
+  { const c = document.createElement('canvas'); c.width = 16; c.height = 28; drawStalagmite3D(c.getContext('2d')!, 307); scene.textures.addCanvas('obj_stalagmite', c) }
+  { const c = document.createElement('canvas'); drawParticle(c); scene.textures.addCanvas('particle', c) }
+  console.log('[gen] 阶段5 完成(3D雕像2+粒子), setTimeout(200)...')
+  await delay(200)
+  if (!isLive()) return
+  report?.(92, '即将完成…')
+  console.log('[gen] 最后 setTimeout(300)')
+  await delay(300)
+  if (!isLive()) return
+  // done — no final report here, BootScene handles 100%
+}
 
-  // 伪3D实体障碍物 ×7
-  {
-    const c = document.createElement('canvas')
-    c.width = 28; c.height = 36
-    drawBuddhaStatue3D(c.getContext('2d')!, 301)
-    scene.textures.addCanvas('obj_buddha', c)
-  }
-  {
-    const c = document.createElement('canvas')
-    c.width = 24; c.height = 34
-    drawGuardianStatue3D(c.getContext('2d')!, 302)
-    scene.textures.addCanvas('obj_guardian', c)
-  }
-  {
-    const c = document.createElement('canvas')
-    c.width = 24; c.height = 22
-    drawMonitorDevice3D(c.getContext('2d')!, 303)
-    scene.textures.addCanvas('obj_monitor', c)
-  }
-  {
-    const c = document.createElement('canvas')
-    c.width = 14; c.height = 36
-    drawStonePillar3D(c.getContext('2d')!, 304)
-    scene.textures.addCanvas('obj_pillar', c)
-  }
-  {
-    const c = document.createElement('canvas')
-    c.width = 36; c.height = 26
-    drawGate3D(c.getContext('2d')!, 305)
-    scene.textures.addCanvas('obj_gate', c)
-  }
-  {
-    const c = document.createElement('canvas')
-    c.width = 30; c.height = 22
-    drawAltarTable3D(c.getContext('2d')!, 306)
-    scene.textures.addCanvas('obj_altar', c)
-  }
-  {
-    const c = document.createElement('canvas')
-    c.width = 16; c.height = 28
-    drawStalagmite3D(c.getContext('2d')!, 307)
-    scene.textures.addCanvas('obj_stalagmite', c)
-  }
+// ═══════════════════════════════════════════════════════════════════════════
+// 同步版本（向后兼容，供可能需要的调用方使用）
+// ═══════════════════════════════════════════════════════════════════════════
 
-  // 粒子
-  {
-    const c = document.createElement('canvas')
-    drawParticle(c)
-    scene.textures.addCanvas('particle', c)
-  }
+export function generateTextures(scene: Phaser.Scene, report?: (pct: number, tip: string) => void) {
+  // 委托给异步版本但同步执行（用于不关心进度显示的上下文）
+  generateTexturesAsync(scene, report).catch(() => {})
 }

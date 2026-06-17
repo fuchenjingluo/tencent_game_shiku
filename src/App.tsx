@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useCallback, Component, type ReactNode } f
 import { motion } from 'framer-motion'
 import { bus } from './events/bus'
 import { createGame, destroyGame, getGameScene } from './phaser/gameFactory'
-import { INITIAL_STATS, TASKS, STORY_EVENTS } from './data/gameData'
+import { INITIAL_STATS, TASKS, STORY_EVENTS, SIDE_QUESTS } from './data/gameData'
 import { writeSave, deleteSave } from './hooks/useSave'
 import { initAudio, destroyAudio } from './audio/audioManager'
 import { ConversionPanel } from './components/ConversionPanel'
@@ -67,11 +67,15 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
 
 // ─── 主 App ────────────────────────────────────────────────────────────────
 
-type AppPhase = 'title' | 'playing' | 'gameover' | 'ngplus' | 'achievements' | 'conversion'
+type AppPhase = 'loading' | 'title' | 'playing' | 'gameover' | 'ngplus' | 'achievements' | 'conversion'
+
+// ─── 模块级标志 — 不受 React StrictMode 双 mount 影响 ───
+let autoGameCreated = false
+let pendingGameStart = false  // ★ 标记"开始游戏"触发的 boot，完成后切到 playing 而非 title
 
 export default function App() {
   const gameContainerRef = useRef<HTMLDivElement>(null)
-  const [phase, setPhase] = useState<AppPhase>('title')
+  const [phase, setPhase] = useState<AppPhase>('loading')
   const [stats, setStats] = useState<GameStats>(INITIAL_STATS)
   const [completedTasks, setCompletedTasks] = useState<string[]>([])
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
@@ -84,6 +88,7 @@ export default function App() {
   const [newAchievements, setNewAchievements] = useState<Achievement[]>([])
   const [showAchievementPopup, setShowAchievementPopup] = useState(false)
   const [challengeMode, setChallengeMode] = useState<ChallengeMode | null>(null)
+  const challengeModeRef = useRef<ChallengeMode | null>(null)
   const activeTaskRef = useRef<ActiveTask | null>(null)
 
   // 运行元数据 — 成就检测用
@@ -93,6 +98,8 @@ export default function App() {
     riskEventsTriggered: 0,
     conversionsUsed: [],
     hiddenPointsFound: [],
+    storyEventsSeen: [],
+    completedTaskCount: 0,
     playTimeMs: 0,
     professionalCount: 0,
     compromiseCount: 0,
@@ -112,12 +119,44 @@ export default function App() {
     if (phase === 'playing') bus.emit('stats:update', stats)
   }, [stats, phase])
 
+  // ★ 页面刷新后自动启动 Phaser 游戏，驱动 #root-loader 进度条
+  // ★ 使用模块级变量 autoGameCreated 而非 useRef：
+  //    React 18 StrictMode unmount+remount 时会清除 useEffect 的 timeout，
+  //    但模块变量不受组件生命周期影响，确保游戏只创建一次。
+  useEffect(() => {
+    if (autoGameCreated) return
+    autoGameCreated = true
+    if (gameContainerRef.current) {
+      createGame(gameContainerRef.current)
+    }
+  }, [])
+
+  // ★ 监听 boot:complete — 区分"初始加载"和"开始游戏"
+  useEffect(() => {
+    const onBootComplete = () => {
+      if (pendingGameStart) {
+        // ★ "开始游戏"触发的 boot 完成 → 进入游戏
+        pendingGameStart = false
+        setPhase('playing')
+      } else {
+        // 初始页面加载完成 → 显示标题画面
+        setPhase((prev) => prev === 'loading' ? 'title' : prev)
+      }
+    }
+    window.addEventListener('boot:complete', onBootComplete)
+    return () => window.removeEventListener('boot:complete', onBootComplete)
+  }, [])
+
   // 启动游戏
   const startGame = useCallback((save: GameSave | null) => {
+    // ★ 防止重复点击"开始游戏"导致竞态
+    if (pendingGameStart) return
+
     initAudio()
+    const mode = challengeModeRef.current
 
     // 铁人模式：不接受存档，删除已有存档
-    if (challengeMode === 'ironman') {
+    if (mode === 'ironman') {
       deleteSave()
       save = null
     }
@@ -147,6 +186,8 @@ export default function App() {
         riskEventsTriggered: 0,
         conversionsUsed: [],
         hiddenPointsFound: [],
+        storyEventsSeen: [],
+        completedTaskCount: 0,
         playTimeMs: 0,
         professionalCount: 0,
         compromiseCount: 0,
@@ -155,25 +196,30 @@ export default function App() {
       styleCountRef.current = { professional: 0, compromise: 0, risky: 0 }
       runStartTime.current = Date.now()
       // 每日/混沌模式初始化
-      if (challengeMode === 'daily') {
+      if (mode === 'daily') {
         dailySeedRef.current = generateDailySeed()
       }
-      if (challengeMode === 'chaos') {
+      if (mode === 'chaos') {
         chaosMultRef.current = generateChaosMultiplier()
       }
     }
 
-    setPhase('playing')
+    // ★ 先销毁旧游戏 → 防止旧 GameScene 在 TitleScreen 消失后短暂露出来
+    destroyGame()
 
-    setTimeout(() => {
-      if (gameContainerRef.current) {
-        createGame(gameContainerRef.current)
-        // 传递挑战模式到 GameScene
-        if (challengeMode) {
-          setTimeout(() => bus.emit('challenge:mode', challengeMode), 200)
-        }
+    // ★ 切到 loading 阶段 → 显示 #root-loader 加载条
+    pendingGameStart = true
+    setPhase('loading')
+
+    // ★ 立即显示加载条并创建新游戏（不需要 setTimeout）
+    window.dispatchEvent(new CustomEvent('boot:reset'))
+    if (gameContainerRef.current) {
+      createGame(gameContainerRef.current)
+      // 传递挑战模式到 GameScene
+      if (challengeMode) {
+        setTimeout(() => bus.emit('challenge:mode', challengeMode), 200)
       }
-    }, 100)
+    }
   }, [])
 
   // 监听游戏事件
@@ -182,10 +228,12 @@ export default function App() {
       bus.on('game:ready', () => {
         const loader = document.getElementById('root-loader')
         if (loader) loader.style.display = 'none'
+        setPhase((prev) => prev === 'loading' ? 'title' : prev)
       }),
 
       bus.on('task:completed', ({ taskId }) => {
         setCompletedTasks((prev) => [...prev, taskId])
+        runMetaRef.current.completedTaskCount++
         setActiveTaskId(null)
         activeTaskRef.current = null
       }),
@@ -226,9 +274,8 @@ export default function App() {
           setShowAchievementPopup(true)
         }
 
-        // 跨周目成就检测
-        const storyFlags = Object.keys(flags ?? {}).filter((k) => flags![k])
-        detectCrossRunAchievement(storyFlags)
+        // 跨周目成就检测（使用实际触发过的故事事件，而非 gameFlags）
+        detectCrossRunAchievement(runMetaRef.current.storyEventsSeen)
 
         // 速通排行榜记录
         if (challengeMode === 'speedrun') {
@@ -278,10 +325,8 @@ export default function App() {
               ? `你有 ${Math.floor(durationMs / 1000)} 秒的时间前往事发地点并进行紧急干预！`
               : '请前往事发地点处理游客事件。' },
           ],
-          // 关闭 intro dialog 后解锁输入，让玩家前往事发现场
-          onClose: () => {
-            bus.emit('ui:lock-input', false)
-          },
+          // ★ 修复: GameScene.onEventTrigger 已 lock 输入，此处不应 unlock
+          // 游客事件期间 input 保持 lock，直到玩家到达现场 interact 或事件超时
         })
       }),
 
@@ -332,9 +377,16 @@ export default function App() {
   const handleChoice = useCallback((choice: Choice, step: TaskStep) => {
     // ═══ P1: 游客事件特殊处理 ═══
     if (step.id === 'tourist_event' || step.id.startsWith('tourist_')) {
-      // 不在这里应用 deltas — 由 GameScene.onEventResolve 根据选择统一处理
-      const isSuccess = choice.id === 'tourist_resolve'
-      bus.emit('tourist:event-resolve', { eventId: step.id, success: isSuccess, choiceDeltas: choice.deltas })
+      // ★ 修复: 三种选择都是合法响应，不应只有 tourist_resolve 才 success
+      // tourist_ignore → 观察获得证据；tourist_harsh → 严厉警告获得更高风险减免
+      const isSuccess = true  // 所有响应都是成功的"干预"
+      // 传递 choiceId 以便 GameScene 区分不同选择的对话文本
+      bus.emit('tourist:event-resolve', {
+        eventId: step.id,
+        success: isSuccess,
+        choiceId: choice.id,
+        choiceDeltas: choice.deltas,
+      })
 
       // 设置 flags
       if (choice.setFlags) {
@@ -433,11 +485,13 @@ export default function App() {
         ?.steps[activeTaskRef.current!.stepIndex]
         ?.id
       if (stepId) {
-        // 找到当前步骤中与选择ID匹配的事件
+        // 找到当前步骤中与选择ID匹配的故事事件（多周目累积用）
         const matchingEvents = Object.entries(STORY_EVENTS)
-          .filter(([k]) => k.startsWith(stepId.slice(0, 6)))
-        if (matchingEvents.length > 0) {
-          // 故事事件在minigame完成后通过 advanceTask 触发
+          .filter(([k]) => k.startsWith(stepId.slice(0, 5)))
+        for (const [eventId] of matchingEvents) {
+          if (!runMetaRef.current.storyEventsSeen.includes(eventId)) {
+            runMetaRef.current.storyEventsSeen.push(eventId)
+          }
         }
       }
     }
@@ -452,9 +506,20 @@ export default function App() {
     const scene = getGameScene()
     if (!scene) return
 
-    // P2: 支线任务完成
+    // P2: 支线任务 vs 主线任务 — 两者可能同时活跃
     const activeSQ = (scene as any)['activeSideQuest'] as string | null
+    const activeMT = scene.activeTask
+
+    if (activeSQ && activeMT) {
+      // ★ 两者同时活跃 → 优先主线任务
+      // 理由: onInteractPoint 在 activeTask 存在时跳过支线分支（line 1413）
+      // 所以此时触发的必然是主线任务交互
+      scene.advanceTask(success, deltas as Record<string, number>)
+      return
+    }
+
     if (activeSQ) {
+      // 仅有支线任务活跃
       scene.completeSideQuest(success)
       return
     }
@@ -484,6 +549,7 @@ export default function App() {
     setFinalStats(null)
     setRiskEvent(null)
     setChallengeMode(null)
+    challengeModeRef.current = null
   }, [playthroughCount])
 
   // NG+ 加成选择
@@ -502,9 +568,8 @@ export default function App() {
   // 挑战模式选择 → 直接开始游戏
   const handleChallengeMode = useCallback((mode: ChallengeMode) => {
     setChallengeMode(mode)
-    // 从标题直接开始新游戏（无存档）
+    challengeModeRef.current = mode  // ★ 立即同步 ref 供 startGame 读取
     startGame(null)
-    // （mode 已在上面设置，startGame 会读取它的新值）
   }, [startGame])
 
   // 同步活跃任务
@@ -526,10 +591,10 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden', background: '#12110d' }}>
-        {/* Phaser 容器 */}
+        {/* Phaser 容器 — 始终在底层 */}
         <div
           ref={gameContainerRef}
-          style={{ position: 'absolute', inset: 0, display: phase === 'playing' ? 'block' : 'none' }}
+          style={{ position: 'absolute', inset: 0, zIndex: 0 }}
         />
 
         {/* React UI 覆盖层 */}
@@ -579,15 +644,17 @@ export default function App() {
           </div>
         )}
 
-        {/* 标题界面 */}
+        {/* 标题界面 — 层级高于 #root-loader(z-index:9999) */}
         {phase === 'title' && (
-          <TitleScreen
-            onStart={startGame}
-            onAchievements={handleOpenAchievements}
-            achievementProgress={getAchievementState()}
-            onChallengeMode={handleChallengeMode}
-            playthroughCount={playthroughCount}
-          />
+          <div style={{ position: 'absolute', inset: 0, zIndex: 20000, pointerEvents: 'all' }}>
+            <TitleScreen
+              onStart={startGame}
+              onAchievements={handleOpenAchievements}
+              achievementProgress={getAchievementState()}
+              onChallengeMode={handleChallengeMode}
+              playthroughCount={playthroughCount}
+            />
+          </div>
         )}
 
         {/* 成就面板 */}
@@ -632,7 +699,7 @@ export default function App() {
                 const next = { ...prev }
                 Object.entries(deltas).forEach(([k, v]) => {
                   const key = k as keyof typeof prev
-                  next[key] = Math.max(0, Math.min(100, next[key] + (v as number)))
+                  next[key] = Math.max(0, Math.min(key === 'budget' ? 20 : 100, next[key] + (v as number)))
                 })
                 return next
               })
@@ -649,16 +716,28 @@ export default function App() {
 
 function AchievementUnlockPopup({ achievements, onClose }: { achievements: Achievement[]; onClose: () => void }) {
   const [visible, setVisible] = useState(false)
+  const autoCloseRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleDismiss = useCallback(() => {
+    setVisible(false)
+    if (autoCloseRef.current) clearTimeout(autoCloseRef.current)
+    setTimeout(onClose, 400)
+  }, [onClose])
 
   useEffect(() => {
-    // 弹出入场延迟
     const t = setTimeout(() => setVisible(true), 600)
-    // 自动关闭
-    const t2 = setTimeout(() => { setVisible(false); setTimeout(onClose, 400) }, 5000)
-    return () => { clearTimeout(t); clearTimeout(t2) }
-  }, [])
+    autoCloseRef.current = setTimeout(handleDismiss, 6000)
+    return () => {
+      clearTimeout(t)
+      if (autoCloseRef.current) clearTimeout(autoCloseRef.current)
+    }
+  }, [handleDismiss])
 
   if (achievements.length === 0) return null
+
+  // ★ 最多展示 3 个，超出显示 "+N"
+  const shown = achievements.slice(0, 3)
+  const overflow = achievements.length - 3
 
   return (
     <motion.div
@@ -686,8 +765,27 @@ function AchievementUnlockPopup({ achievements, onClose }: { achievements: Achie
         <span style={{ fontSize: 9, color: '#5a5040', marginLeft: 'auto' }}>
           {achievements.length > 1 ? `×${achievements.length}` : ''}
         </span>
+        {/* ★ 手动关闭按钮 */}
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={handleDismiss}
+          style={{
+            background: 'none',
+            border: '1px solid rgba(215,189,115,0.2)',
+            borderRadius: 4,
+            color: '#d7bd73',
+            cursor: 'pointer',
+            fontSize: 11,
+            padding: '1px 6px',
+            marginLeft: 4,
+            lineHeight: '16px',
+          }}
+        >
+          ✕
+        </motion.button>
       </div>
-      {achievements.map((ach) => (
+      {shown.map((ach) => (
         <motion.div
           key={ach.id}
           initial={{ opacity: 0, x: -10 }}
@@ -710,6 +808,18 @@ function AchievementUnlockPopup({ achievements, onClose }: { achievements: Achie
           </div>
         </motion.div>
       ))}
+      {/* ★ 溢出提示 */}
+      {overflow > 0 && (
+        <div style={{
+          fontSize: 10,
+          color: '#8b7355',
+          textAlign: 'center',
+          paddingTop: 2,
+          fontFamily: 'monospace',
+        }}>
+          ... 还有 {overflow} 项成就
+        </div>
+      )}
     </motion.div>
   )
 }

@@ -125,6 +125,8 @@ export interface AchievementRunMeta {
   riskEventsTriggered: number
   conversionsUsed: string[]
   hiddenPointsFound: string[]
+  storyEventsSeen: string[]
+  completedTaskCount: number
   playTimeMs: number
   ending: EndingType
   professionalCount: number
@@ -288,7 +290,7 @@ export interface BusEvents {
   'objective:request': void
   'open:conversion': void
   'tourist:event': { eventId: string; title: string; introLines: { speaker: string; text: string }[]; durationMs: number; action: string }
-  'tourist:event-resolve': { eventId: string; success: boolean; choiceDeltas?: Partial<Record<string, number>> }
+  'tourist:event-resolve': { eventId: string; success: boolean; choiceId?: string; choiceDeltas?: Partial<Record<string, number>> }
   'tourist:density-changed': number
   'sidequest:offer': { questId: string; title: string; briefing: string; npcName: string }
   'sidequest:complete': { questId: string }

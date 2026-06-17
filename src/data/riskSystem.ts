@@ -106,7 +106,7 @@ export function applyRiskDeltas(stats: GameStats, event: RiskEvent): GameStats {
   const next = { ...stats }
   for (const [key, val] of Object.entries(event.deltas)) {
     const k = key as keyof GameStats
-    next[k] = Math.max(0, Math.min(100, next[k] + (val as number)))
+    next[k] = Math.max(0, Math.min(k === 'budget' ? 20 : 100, next[k] + (val as number)))
   }
   return next
 }

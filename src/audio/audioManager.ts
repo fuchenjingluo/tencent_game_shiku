@@ -22,6 +22,12 @@ function getCtx(): AudioContext {
   return ctx
 }
 
+/** 获取音频输出节点 — 优先走 masterGain（受 setVolume 控制） */
+function getOutput(): AudioNode {
+  const ac = getCtx()
+  return masterGain ?? ac.destination
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // BGM — 55Hz 低频drone + 低通滤波白噪声(风) + 随机水滴
 // ═══════════════════════════════════════════════════════════════════════════
@@ -121,7 +127,7 @@ export function playStep() {
   filter.Q.value = 1.5
   src.buffer = buffer
   src.connect(filter)
-  filter.connect(ac.destination)
+  filter.connect(getOutput())
   src.start()
 }
 
@@ -139,7 +145,7 @@ export function playInteract() {
   g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.3)
   osc.type = 'triangle'
   osc.connect(g)
-  g.connect(ac.destination)
+  g.connect(getOutput())
   osc.start()
   osc.stop(ac.currentTime + 0.3)
 }
@@ -160,7 +166,7 @@ export function playSuccess() {
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.35)
     osc.type = 'triangle'
     osc.connect(g)
-    g.connect(ac.destination)
+    g.connect(getOutput())
     osc.start(t)
     osc.stop(t + 0.35)
   })
@@ -180,7 +186,7 @@ export function playFail() {
   g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.55)
   osc.type = 'sawtooth'
   osc.connect(g)
-  g.connect(ac.destination)
+  g.connect(getOutput())
   osc.start()
   osc.stop(ac.currentTime + 0.55)
 }
@@ -198,7 +204,7 @@ export function playClick() {
   g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.06)
   osc.type = 'square'
   osc.connect(g)
-  g.connect(ac.destination)
+  g.connect(getOutput())
   osc.start()
   osc.stop(ac.currentTime + 0.06)
 }
@@ -219,7 +225,7 @@ export function playTaskComplete() {
     g.gain.exponentialRampToValueAtTime(0.001, t + 1.4)
     osc.type = 'triangle'
     osc.connect(g)
-    g.connect(ac.destination)
+    g.connect(getOutput())
     osc.start(t)
     osc.stop(t + 1.4)
   })
@@ -240,7 +246,7 @@ export function playRiskAlert() {
   g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.6)
   osc.type = 'sawtooth'
   osc.connect(g)
-  g.connect(ac.destination)
+  g.connect(getOutput())
   osc.start()
   osc.stop(ac.currentTime + 0.6)
 }
@@ -261,7 +267,7 @@ export function playAmbientDrip() {
   g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.5)
   osc.type = 'sine'
   osc.connect(g)
-  g.connect(ac.destination)
+  g.connect(getOutput())
   osc.start()
   osc.stop(ac.currentTime + 0.5)
 
@@ -273,7 +279,7 @@ export function playAmbientDrip() {
   g2.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.9)
   osc2.type = 'sine'
   osc2.connect(g2)
-  g2.connect(ac.destination)
+  g2.connect(getOutput())
   osc2.start(ac.currentTime + 0.25)
   osc2.stop(ac.currentTime + 0.9)
 }
