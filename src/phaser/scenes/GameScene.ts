@@ -113,6 +113,8 @@ export class GameScene extends Phaser.Scene {
     this.setupTouristSystem()
     // 在所有障碍物放置完毕后，将障碍物位置传给游客系统避让
     this.touristManager.setObstacles(this.obstacleDataList)
+    // ★ 障碍物就绪后才创建游客（避免生成在障碍物内部）
+    this.touristManager.updateDensity(this.gameFlags)
     this.startPlayerBounce()
 
     // 方向箭头图层（屏幕空间，不跟随摄像机）
@@ -1027,7 +1029,7 @@ export class GameScene extends Phaser.Scene {
       })
     }
 
-    this.touristManager.updateDensity(this.gameFlags)
+    // ★ 游客数量控制推迟到 setObstacles 之后执行（创建时需障碍物数据校验生成位置）
   }
 
   private getCurrentRoomName(x: number, y: number): string {
