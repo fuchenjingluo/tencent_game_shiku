@@ -173,6 +173,8 @@ export class TouristManager {
   private eventResolved = false
   private eventCooldown = 0
   private obstacles: ObstacleData[] = []
+  private debugGfx: Phaser.GameObjects.Graphics | null = null
+  private debugVisible = false
 
   onEventTrigger: ((event: TouristEvent) => void) | null = null
   onEventResolve: ((event: TouristEvent, success: boolean, choiceDeltas?: Partial<Record<string, number>>, choiceId?: string) => void) | null = null
@@ -180,11 +182,20 @@ export class TouristManager {
   constructor(scene: Phaser.Scene, mapData: Uint8Array) {
     this.scene = scene
     this.mapData = mapData
+    this.debugGfx = scene.add.graphics()
+    this.debugGfx.setDepth(9999)
+    this.debugGfx.setVisible(false)
   }
 
   /** 接收障碍物位置数据（由 GameScene.placeRoomObstacles 后传入） */
   setObstacles(data: ObstacleData[]): void {
     this.obstacles = data
+  }
+
+  /** 开启/关闭路线可视化 */
+  setDebug(visible: boolean): void {
+    this.debugVisible = visible
+    if (this.debugGfx) this.debugGfx.setVisible(visible)
   }
 
   // ═════════════════════════════════════════════════════════════════════
@@ -443,6 +454,8 @@ export class TouristManager {
 
     this.updateTourists(dt)
 
+    if (this.debugVisible) this.renderDebug()
+
     if (!inputLocked && !this.activeEvent) {
       this.eventCheckTimer += delta
       if (this.eventCheckTimer >= 8000 && this.tourists.length > 0) {
@@ -463,6 +476,57 @@ export class TouristManager {
     if (this.eventCooldown > 0) {
       this.eventCooldown -= delta
     }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════
+  // 路线可视化 debug
+  // ═════════════════════════════════════════════════════════════════════
+
+  private renderDebug(): void {
+    const gfx = this.debugGfx!
+    gfx.clear()
+    const colors = [0x00ff88, 0xff8844, 0x44aaff, 0xffdd44, 0xff66aa, 0x66ffcc, 0xcc88ff]
+    const stateAlpha: Record<string, number> = { roaming: 0.9, traveling: 0.8, blocked: 0.5 }
+
+    this.tourists.forEach((t, i) => {
+      const color = colors[i % colors.length]
+      const alpha = stateAlpha[t.state] ?? 0.7
+
+      // 1) 绘制路点连线
+      if (t.waypoints.length > 0) {
+        gfx.lineStyle(2, color, alpha * 0.6)
+        // 从当前位置开始
+        let prevX = t.sprite.x
+        let prevY = t.sprite.y
+        for (let wi = t.wpIndex; wi < t.waypoints.length; wi++) {
+          const wp = t.waypoints[wi]
+          gfx.beginPath()
+          gfx.moveTo(prevX, prevY)
+          gfx.lineTo(wp.x, wp.y)
+          gfx.strokePath()
+          prevX = wp.x
+          prevY = wp.y
+        }
+      }
+
+      // 2) 路点圆圈 + 编号
+      for (let wi = t.wpIndex; wi < t.waypoints.length; wi++) {
+        const wp = t.waypoints[wi]
+        const isTarget = wi === t.wpIndex
+        const r = isTarget ? 6 : 3
+        gfx.fillStyle(isTarget ? 0xffffff : color, alpha * (isTarget ? 1 : 0.5))
+        gfx.fillCircle(wp.x, wp.y, r)
+      }
+
+      // 3) 游客头顶状态标签
+      const labelX = t.sprite.x
+      const labelY = t.sprite.y - 28
+      const stateSymbol: Record<string, string> = { roaming: '🏠', traveling: '🚶', blocked: '⚠' }
+      const text = `${stateSymbol[t.state] ?? '?'} #${i}`
+      gfx.fillStyle(0x000000, 0.6)
+      gfx.fillRoundedRect(labelX - 28, labelY - 8, 56, 16, 4)
+      // 状态文字用游客名字标签的颜色
+    })
   }
 
   // ═════════════════════════════════════════════════════════════════════

@@ -80,6 +80,7 @@ export class GameScene extends Phaser.Scene {
   // ── 游客系统 ──
   private touristManager!: TouristManager
   private obstacleDataList: ObstacleData[] = []
+  private debugRoute = false  // 按 T 切换游客路线可视化
   // ── P2: 支线任务 ──
   private completedSideQuests: Set<string> = new Set()
   private activeSideQuest: string | null = null
@@ -726,6 +727,12 @@ export class GameScene extends Phaser.Scene {
       right: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
     }
     this.interactKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E)
+    // debug: 按 T 切换游客路线可视化
+    const debugKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.T)
+    debugKey.on('down', () => {
+      this.debugRoute = !this.debugRoute
+      this.touristManager?.setDebug(this.debugRoute)
+    })
   }
 
   // ═════════════════════════════════════════════════════════════════════
