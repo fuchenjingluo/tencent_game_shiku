@@ -207,6 +207,11 @@ export function ChoicePanelController({ onChoose, gameFlags, stats }: ChoicePane
     onChoose(choice, state.step)
   }, [state, onChoose])
 
+  const handleDismiss = useCallback(() => {
+    setState(null)
+    bus.emit('ui:choice-cancelled')
+  }, [])
+
   if (!state) return null
 
   // 计算每个选项是否被 flag 禁用
@@ -236,12 +241,16 @@ export function ChoicePanelController({ onChoose, gameFlags, stats }: ChoicePane
           pointerEvents: 'all',
           overflowY: 'auto',
           padding: '20px',
+          cursor: 'default',
         }}
+        onClick={handleDismiss}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+          onClick={(e) => e.stopPropagation()}
           transition={{ type: 'spring', stiffness: 200, damping: 20 }}
           style={{
             width: 820,
@@ -254,14 +263,34 @@ export function ChoicePanelController({ onChoose, gameFlags, stats }: ChoicePane
           }}
         >
           {/* 标题 */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 10, color: '#8b7355', letterSpacing: '0.12em', marginBottom: 4, fontFamily: 'monospace' }}>
+          <div style={{ marginBottom: 14, position: 'relative' }}>
+            <div style={{ fontSize: 10, color: '#8b7355', letterSpacing: '0.12em', marginBottom: 4, fontFamily: 'monospace', paddingRight: 36 }}>
               {state.taskTitle}
             </div>
-            <div style={{ fontSize: 16, color: '#d7bd73', fontWeight: 600 }}>
+            <div style={{ fontSize: 16, color: '#d7bd73', fontWeight: 600, paddingRight: 36 }}>
               {state.step.description}
             </div>
             <div style={{ height: 1, background: 'rgba(215,189,115,0.15)', marginTop: 10 }} />
+
+            {/* 关闭按钮 */}
+            <motion.button
+              whileHover={{ scale: 1.15, background: 'rgba(217,143,114,0.2)', borderColor: '#d98f72' }}
+              whileTap={{ scale: 0.9 }}
+              onClick={handleDismiss}
+              style={{
+                position: 'absolute', top: 0, right: 0,
+                width: 30, height: 30,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 6,
+                color: '#8b7355',
+                fontSize: 16,
+                cursor: 'pointer',
+                fontFamily: 'monospace',
+              }}
+              title="关闭（不选择任何方案）"
+            >✕</motion.button>
           </div>
 
           {/* 三个选项 */}
