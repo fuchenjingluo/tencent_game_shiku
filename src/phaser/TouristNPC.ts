@@ -577,8 +577,12 @@ export class TouristManager {
     if (t.state === newState) return
 
     if (newState === 'roaming') {
-      t.zoneEnterTime = this.scene.time.now
-      t.roamDuration = 8000 + Math.random() * 12000
+      // ★ 从 blocked 恢复时保留原始计时器，不再重置（否则游客永远无法离开房间）
+      const recovering = t.state === 'blocked'
+      if (!recovering) {
+        t.zoneEnterTime = this.scene.time.now
+        t.roamDuration = 8000 + Math.random() * 12000
+      }
       t.waypoints = []
       t.wpIndex = 0
       t.arrived = false
