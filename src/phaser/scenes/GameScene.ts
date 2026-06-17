@@ -861,7 +861,7 @@ export class GameScene extends Phaser.Scene {
       const cx = (r.x + r.w / 2) * TILE_SIZE
       const cy = (r.y + 1) * TILE_SIZE
       const t = this.add.text(cx, cy, r.name, {
-        fontSize: '13px',
+        fontSize: '16px',
         color: '#f0d68a',
         fontFamily: 'monospace',
         stroke: '#0d0a05',
