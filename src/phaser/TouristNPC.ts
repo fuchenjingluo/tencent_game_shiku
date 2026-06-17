@@ -198,9 +198,20 @@ export class TouristManager {
     if (flags['free_flow']) target = 14
     else if (flags['batch_flow']) target = 12
 
-    // 增减游客以匹配目标数量
-    while (this.tourists.length < target) {
-      this.createTouristAtRandomPosition()
+    // ★ 首次创建：每个房间至少分配 1 个游客，剩余随机分配
+    if (this.tourists.length === 0 && target >= ROOMS.length) {
+      const roomOrder = [...ROOMS].sort(() => Math.random() - 0.5)
+      for (const room of roomOrder) {
+        this.createTouristInRoom(room.id)
+      }
+      // 剩余的随机分配
+      while (this.tourists.length < target) {
+        this.createTouristAtRandomPosition()
+      }
+    } else {
+      while (this.tourists.length < target) {
+        this.createTouristAtRandomPosition()
+      }
     }
     while (this.tourists.length > target) {
       const t = this.tourists.pop()!
@@ -214,8 +225,14 @@ export class TouristManager {
    * 调用时机：首次 updateDensity() + 需要增加游客数时。
    */
   private createTouristAtRandomPosition(): void {
+    const room = ROOMS[Math.floor(Math.random() * ROOMS.length)]
+    this.createTouristInRoom(room.id)
+  }
+
+  /** 在指定房间内创建一个游客 */
+  private createTouristInRoom(roomId: string): void {
     const variant = Math.floor(Math.random() * 3)
-    const pos = this.pickRoomSpawnPosition()
+    const pos = this.pickRoomSpawnPosition(roomId)
     const sx = pos.x, sy = pos.y
 
     const spr = this.scene.add.sprite(sx, sy, 'player')
@@ -228,8 +245,8 @@ export class TouristManager {
       stroke: '#000000', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(Math.floor(sy / 28) + 0.5)
 
-    // ★ 立即生成一个随机漫步目标
-    const firstWp = this.pickRandomWaypoint(sx, sy)
+    // ★ 立即生成一个随机漫步目标（roomHopCount=0，出生时不会强制跨房间）
+    const firstWp = this.pickRandomWaypoint(sx, sy, this.findRoomIdAt(sx, sy), 0)
 
     const tourist: Tourist = {
       sprite: spr, nameLabel: label,
@@ -252,9 +269,11 @@ export class TouristManager {
     this.tourists.push(tourist)
   }
 
-  /** 从 7 个房间中随机选一个，返回一个可走行的像素位置 */
-  private pickRoomSpawnPosition(): { x: number; y: number } {
-    const room = ROOMS[Math.floor(Math.random() * ROOMS.length)]
+  /** 从指定房间内返回一个可走行的像素位置 */
+  private pickRoomSpawnPosition(preferredRoomId?: string): { x: number; y: number } {
+    const room = preferredRoomId
+      ? (ROOMS.find(r => r.id === preferredRoomId) ?? ROOMS[Math.floor(Math.random() * ROOMS.length)])
+      : ROOMS[Math.floor(Math.random() * ROOMS.length)]
     const roomCX = (room.x + room.w / 2) * TILE_SIZE
     const roomCY = (room.y + room.h / 2) * TILE_SIZE
     const rangeX = (room.w - 2) * TILE_SIZE / 2
@@ -274,12 +293,18 @@ export class TouristManager {
 
   /**
    * 在全地图范围内随机选一个可走行的路点。
-   * roomHopCount >= 3 时强制选其他房间（打破中心窟室聚集）。
+   * 接收游客位置 + 房间状态（currentRoomId / roomHopCount）。
+   * roomHopCount >= 2 时强制选其他房间（打破中心窟室聚集）。
    */
-  private pickRandomWaypoint(nearX: number, nearY: number, forceFar: boolean = false): { x: number; y: number } {
-    // ★ 房间意识：在同一房间内连续选了 3 次路点 → 强制跨房间
+  private pickRandomWaypoint(
+    nearX: number, nearY: number,
+    currentRoomId: string | null,
+    roomHopCount: number,
+    forceFar: boolean = false,
+  ): { x: number; y: number } {
+    // ★ 房间意识：在同一房间内连续选了 2 次路点 → 强制跨房间
     const curRoom = this.findRoomIdAt(nearX, nearY)
-    const shouldChangeRoom = forceFar || (curRoom !== null && this.currentRoomId === curRoom && this.roomHopCount >= 3)
+    const shouldChangeRoom = forceFar || (curRoom !== null && currentRoomId === curRoom && roomHopCount >= 2)
 
     if (shouldChangeRoom) {
       // 从其他房间中随机选一个作为目标
@@ -292,7 +317,6 @@ export class TouristManager {
       for (const room of otherRooms) {
         const pt = this.pickPointInRoom(room.id)
         if (pt) {
-          this.roomHopCount = 0
           return pt
         }
       }
@@ -320,6 +344,9 @@ export class TouristManager {
       if (this.isInsideAnyObstacle(x, y + 8, 0)) continue
       if (this.isInsideAnyObstacle(x, y - 8, 0)) continue
       if (!this.hasLineOfSight(nearX, nearY, x, y)) continue
+      // ★ main-hall 路点接受率降低 — 60% 概率拒绝（打破聚集）
+      const wpRoom = this.findRoomIdAt(x, y)
+      if (wpRoom === 'main-hall' && Math.random() < 0.6) continue
       return { x: Math.round(x), y: Math.round(y) }
     }
 
@@ -334,6 +361,9 @@ export class TouristManager {
       if (col < 2 || col >= MAP_COLS - 2 || row < 2 || row >= MAP_ROWS - 2) continue
       if (this.isWallTile(x, y)) continue
       if (this.isInsideAnyObstacle(x, y, 28)) continue
+      // ★ main-hall 路点接受率降低
+      const wpRoom = this.findRoomIdAt(x, y)
+      if (wpRoom === 'main-hall' && Math.random() < 0.6) continue
       return { x: Math.round(x), y: Math.round(y) }
     }
 
@@ -445,7 +475,8 @@ export class TouristManager {
         t.arrived = false
         t.pauseUntil = 0
         t.stuckTimer = 0
-        t.waypoints = [this.pickRandomWaypoint(t.sprite.x, t.sprite.y)]
+        t.roomHopCount++  // ★ 脱困也计数，加速跨房间
+        t.waypoints = [this.pickRandomWaypoint(t.sprite.x, t.sprite.y, t.currentRoomId, t.roomHopCount)]
         t.wpIndex = 0
         return
       }
@@ -470,7 +501,8 @@ export class TouristManager {
 
       if (t.stuckTimer > 1.5) {
         t.stuckTimer = 0
-        t.waypoints = [this.pickRandomWaypoint(t.sprite.x, t.sprite.y, true)]
+        t.roomHopCount++  // ★ 卡死也计数
+        t.waypoints = [this.pickRandomWaypoint(t.sprite.x, t.sprite.y, t.currentRoomId, t.roomHopCount, true)]
         t.wpIndex = 0
         t.arrived = false
         t.pauseUntil = 0
@@ -484,9 +516,9 @@ export class TouristManager {
         t.pauseUntil = now + 600 + Math.random() * 2000
         // 在当前位置附近随机选一个点；连续短距跳跃 3 次 → 强制远距离
         const forceFar = t.shortHopCount >= 3
-        // ★ 同一房间内连续选 3 次路点 → 强制跨房间（在 pickRandomWaypoint 内处理）
+        // ★ 同一房间内连续选 2 次路点 → 强制跨房间（在 pickRandomWaypoint 内处理）
         t.roomHopCount++
-        t.waypoints = [this.pickRandomWaypoint(t.sprite.x, t.sprite.y, forceFar)]
+        t.waypoints = [this.pickRandomWaypoint(t.sprite.x, t.sprite.y, t.currentRoomId, t.roomHopCount, forceFar)]
         t.wpIndex = 0
         t.originX = t.sprite.x
         t.originY = t.sprite.y
