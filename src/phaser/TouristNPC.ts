@@ -49,6 +49,9 @@ interface Tourist {
   targetZoneId: string | null  // traveling 时前往的目标区域
   zoneEnterTime: number        // 进入当前区域的时间（roaming 计时用）
   roamDuration: number         // roaming 在本区域的停留时长
+
+  // debug 倒计时显示
+  countdownText: Phaser.GameObjects.Text
 }
 
 // ─── 随机事件定义 ──────────────────────────────────────────────────────────
@@ -196,6 +199,7 @@ export class TouristManager {
   setDebug(visible: boolean): void {
     this.debugVisible = visible
     if (this.debugGfx) this.debugGfx.setVisible(visible)
+    this.tourists.forEach(t => t.countdownText.setVisible(visible))
   }
 
   // ═════════════════════════════════════════════════════════════════════
@@ -262,6 +266,13 @@ export class TouristManager {
 
     const spawnedRoom = this.findRoomIdAt(sx, sy)
 
+    // debug 倒计时文本（默认隐藏，按T开启）
+    const countdownText = this.scene.add.text(sx, sy - 28, '', {
+      fontSize: '8px', color: '#ffdd44', fontFamily: 'monospace',
+      stroke: '#000000', strokeThickness: 3,
+      align: 'center',
+    }).setOrigin(0.5).setDepth(9999).setVisible(false)
+
     const tourist: Tourist = {
       sprite: spr, nameLabel: label,
       speed: 28 + Math.random() * 18,
@@ -279,6 +290,7 @@ export class TouristManager {
       targetZoneId: null,
       zoneEnterTime: this.scene.time.now,
       roamDuration: 8000 + Math.random() * 12000,
+      countdownText,
     }
     this.tourists.push(tourist)
   }
@@ -438,6 +450,7 @@ export class TouristManager {
     this.scene.tweens.killTweensOf(t.nameLabel)
     if (t.sprite.active) t.sprite.destroy()
     if (t.nameLabel.active) t.nameLabel.destroy()
+    if (t.countdownText?.active) t.countdownText.destroy()
   }
 
   private despawnAll(): void {
@@ -527,6 +540,32 @@ export class TouristManager {
       gfx.fillRoundedRect(labelX - 28, labelY - 8, 56, 16, 4)
       // 状态文字用游客名字标签的颜色
     })
+  }
+
+  /** 更新 debug 倒计时标签 */
+  private updateCountdownLabel(t: Tourist, now: number): void {
+    if (!this.debugVisible) return
+    const label = t.countdownText
+    label.setPosition(t.sprite.x, t.sprite.y - 38)
+
+    if (t.state === 'roaming') {
+      const remaining = Math.max(0, t.roamDuration - (now - t.zoneEnterTime))
+      const sec = Math.ceil(remaining / 1000)
+      if (sec > 0) {
+        label.setText(`⏱ ${sec}s`)
+        label.setColor('#ffdd44')
+      } else {
+        label.setText('→')
+        label.setColor('#ff8844')
+      }
+    } else if (t.state === 'traveling') {
+      const targetRoom = ROOMS.find(r => r.id === t.targetZoneId)
+      label.setText(`→ ${targetRoom?.name ?? '??'}`)
+      label.setColor('#44aaff')
+    } else if (t.state === 'blocked') {
+      label.setText('⚠')
+      label.setColor('#ff4444')
+    }
   }
 
   // ═════════════════════════════════════════════════════════════════════
@@ -638,6 +677,9 @@ export class TouristManager {
         case 'traveling': this.updateTraveling(t, dt, now);  break
         case 'blocked':   this.updateBlocked(t, dt);         break
       }
+
+      // ★ debug 倒计时更新
+      this.updateCountdownLabel(t, now)
     })
   }
 
