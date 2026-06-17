@@ -292,145 +292,155 @@ export function TimingGame({ difficulty, prompt, onComplete }: TimingGameProps) 
       {/* 轮次指示 */}
       {phase !== 'idle' && <RoundDots />}
 
-      {/* 状态条 */}
-      {phase === 'playing' && (
-        <div style={{ display: 'flex', gap: 16, fontSize: 10, fontFamily: 'monospace', color: zoneColor }}>
-          <span>稳定度 {stability}%</span>
-          <span style={{ color: goldColor }}>黄金窗 {Math.round(zonePct * cfg.goldRatio)}%</span>
-          <span>{elapsed.toFixed(1)}s / {cfg.durationSec}s</span>
+      {/* ════ 固定高度游戏区域 — 防止内容显示/隐藏时布局跳动 ════ */}
+      <div style={{ width: 420, minHeight: 136, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, flexShrink: 0 }}>
+
+        {/* 状态条 — 固定高度占位 */}
+        <div style={{ height: 18, display: 'flex', alignItems: 'center' }}>
+          {phase === 'playing' && (
+            <div style={{ display: 'flex', gap: 16, fontSize: 10, fontFamily: 'monospace', color: zoneColor }}>
+              <span>稳定度 {stability}%</span>
+              <span style={{ color: goldColor }}>黄金窗 {Math.round(zonePct * cfg.goldRatio)}%</span>
+              <span>{elapsed.toFixed(1)}s / {cfg.durationSec}s</span>
+            </div>
+          )}
         </div>
-      )}
 
-      {/* 指针滑条 */}
-      {phase === 'playing' && (
-        <motion.div
-          key={`round-${round}-${pulseKey}`}
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          style={{ position: 'relative', width: 400, height: 56, cursor: 'pointer', flexShrink: 0 }}
-          onClick={press}
-        >
-          {/* 轨道背景 */}
-          <div style={{
-            position: 'absolute', top: '50%', left: 0, right: 0, height: 8,
-            transform: 'translateY(-50%)', background: '#1e1b15', borderRadius: 4,
-            border: '1px solid #3d3322',
-          }} />
+        {/* 指针滑条 — 固定高度占位 */}
+        <div style={{ width: 400, height: 56, position: 'relative' }}>
+          {phase === 'playing' && (
+            <motion.div
+              key={`round-${round}-${pulseKey}`}
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              style={{ position: 'absolute', inset: 0, cursor: 'pointer' }}
+              onClick={press}
+            >
+              {/* 轨道背景 */}
+              <div style={{
+                position: 'absolute', top: '50%', left: 0, right: 0, height: 8,
+                transform: 'translateY(-50%)', background: '#1e1b15', borderRadius: 4,
+                border: '1px solid #3d3322',
+              }} />
 
-          {/* 绿色目标窗口 */}
-          <motion.div
-            animate={{ left: `${zoneStart}%`, width: `${zonePct}%` }}
-            transition={{ duration: 0.05 }}
-            style={{
-              position: 'absolute', top: '50%', height: 12,
-              transform: 'translateY(-50%)', borderRadius: 4,
-              background: zoneColor + '22',
-              border: `1px solid ${zoneColor}88`,
-            }}
-          />
+              {/* 绿色目标窗口 */}
+              <motion.div
+                animate={{ left: `${zoneStart}%`, width: `${zonePct}%` }}
+                transition={{ duration: 0.05 }}
+                style={{
+                  position: 'absolute', top: '50%', height: 12,
+                  transform: 'translateY(-50%)', borderRadius: 4,
+                  background: zoneColor + '22',
+                  border: `1px solid ${zoneColor}88`,
+                }}
+              />
 
-          {/* 黄金窗口（绿窗内更窄的区间） */}
-          <motion.div
-            animate={{ left: `${goldStart}%`, width: `${zonePct * cfg.goldRatio}%` }}
-            transition={{ duration: 0.05 }}
-            style={{
-              position: 'absolute', top: '50%', height: 16,
-              transform: 'translateY(-50%)', borderRadius: 4,
-              background: 'rgba(245,214,105,0.18)',
-              border: '1px solid rgba(245,214,105,0.6)',
-              boxShadow: '0 0 6px rgba(245,214,105,0.2)',
-            }}
-          />
+              {/* 黄金窗口（绿窗内更窄的区间） */}
+              <motion.div
+                animate={{ left: `${goldStart}%`, width: `${zonePct * cfg.goldRatio}%` }}
+                transition={{ duration: 0.05 }}
+                style={{
+                  position: 'absolute', top: '50%', height: 16,
+                  transform: 'translateY(-50%)', borderRadius: 4,
+                  background: 'rgba(245,214,105,0.18)',
+                  border: '1px solid rgba(245,214,105,0.6)',
+                  boxShadow: '0 0 6px rgba(245,214,105,0.2)',
+                }}
+              />
 
-          {/* 中心标记线 */}
-          <div style={{ position: 'absolute', top: '50%', left: '50%', width: 1, height: 18,
-            transform: 'translate(-50%, -50%)', background: zoneColor + '44' }} />
+              {/* 中心标记线 */}
+              <div style={{ position: 'absolute', top: '50%', left: '50%', width: 1, height: 18,
+                transform: 'translate(-50%, -50%)', background: zoneColor + '44' }} />
 
-          {/* 移动指针 */}
-          <motion.div
-            animate={{ left: `${position}%` }}
-            transition={{ duration: 0 }}
-            style={{
-              position: 'absolute', top: '50%', width: 4, height: 28,
-              background: '#d7bd73', borderRadius: 2,
-              transform: 'translate(-50%, -50%)',
-              boxShadow: '0 0 12px rgba(215,189,115,0.9)',
-            }}
-          />
+              {/* 移动指针 */}
+              <motion.div
+                animate={{ left: `${position}%` }}
+                transition={{ duration: 0 }}
+                style={{
+                  position: 'absolute', top: '50%', width: 4, height: 28,
+                  background: '#d7bd73', borderRadius: 2,
+                  transform: 'translate(-50%, -50%)',
+                  boxShadow: '0 0 12px rgba(215,189,115,0.9)',
+                }}
+              />
 
-          {/* 刻度 */}
-          {[0, 25, 50, 75, 100].map(p => (
-            <div key={p} style={{ position: 'absolute', top: '72%', left: `${p}%`,
-              width: 1, height: 5, background: '#3d3322', transform: 'translateX(-50%)' }} />
-          ))}
-        </motion.div>
-      )}
-
-      {/* 操作提示 */}
-      {phase === 'playing' && (
-        <div style={{ fontSize: 10, color: '#5a5040', fontFamily: 'monospace' }}>
-          按 <span style={{ color: '#d7bd73', fontWeight: 500 }}>空格</span> 或
-          <span style={{ color: '#f5d669', fontWeight: 500 }}> 点击 </span>
-          锁定读数 · 第 {round + 1}/{totalRounds} 轮
+              {/* 刻度 */}
+              {[0, 25, 50, 75, 100].map(p => (
+                <div key={p} style={{ position: 'absolute', top: '72%', left: `${p}%`,
+                  width: 1, height: 5, background: '#3d3322', transform: 'translateX(-50%)' }} />
+              ))}
+            </motion.div>
+          )}
         </div>
-      )}
 
-      {/* 单轮结果 */}
-      <AnimatePresence>
-        {phase === 'round-result' && justResult && (
-          <motion.div
-            key="round-result"
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 18 }}
-            style={{ textAlign: 'center' }}
+        {/* 操作提示 — 固定高度占位 */}
+        <div style={{ height: 16, display: 'flex', alignItems: 'center' }}>
+          {phase === 'playing' && (
+            <div style={{ fontSize: 10, color: '#5a5040', fontFamily: 'monospace' }}>
+              按 <span style={{ color: '#d7bd73', fontWeight: 500 }}>空格</span> 或
+              <span style={{ color: '#f5d669', fontWeight: 500 }}> 点击 </span>
+              锁定读数 · 第 {round + 1}/{totalRounds} 轮
+            </div>
+          )}
+        </div>
+
+        {/* 单轮结果 */}
+        <AnimatePresence>
+          {phase === 'round-result' && justResult && (
+            <motion.div
+              key="round-result"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+              style={{ textAlign: 'center' }}
+            >
+              {justResult === 'perfect' && (
+                <div>
+                  <motion.div
+                    animate={{ scale: [1, 1.3, 1] }}
+                    transition={{ duration: 0.4 }}
+                    style={{ fontSize: 40, marginBottom: 2 }}
+                  >🎯</motion.div>
+                  <div style={{ fontSize: 15, color: '#f5d669', fontWeight: 700 }}>黄金命中！</div>
+                  <div style={{ fontSize: 10, color: '#8b7355', marginTop: 2 }}>在黄金窗口内锁定 — 数据精度达到最优</div>
+                </div>
+              )}
+              {justResult === 'hit' && (
+                <div>
+                  <div style={{ fontSize: 36, marginBottom: 2 }}>✅</div>
+                  <div style={{ fontSize: 15, color: '#8fae78', fontWeight: 700 }}>读数已锁定</div>
+                  <div style={{ fontSize: 10, color: '#8b7355', marginTop: 2 }}>命中目标窗口，数据可用</div>
+                </div>
+              )}
+              {justResult === 'miss' && (
+                <div>
+                  <div style={{ fontSize: 36, marginBottom: 2 }}>💨</div>
+                  <div style={{ fontSize: 15, color: '#d98f72', fontWeight: 700 }}>窗口错过</div>
+                  <div style={{ fontSize: 10, color: '#8b7355', marginTop: 2 }}>指针偏离目标区间</div>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 开始按钮 */}
+        {phase === 'idle' && (
+          <motion.button
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={startGame}
+            style={{
+              padding: '10px 32px', background: 'rgba(215,189,115,0.1)',
+              border: '1px solid rgba(215,189,115,0.4)', borderRadius: 8,
+              color: '#d7bd73', cursor: 'pointer', fontSize: 14,
+              fontFamily: 'monospace',
+            }}
           >
-            {justResult === 'perfect' && (
-              <div>
-                <motion.div
-                  animate={{ scale: [1, 1.3, 1] }}
-                  transition={{ duration: 0.4 }}
-                  style={{ fontSize: 40, marginBottom: 2 }}
-                >🎯</motion.div>
-                <div style={{ fontSize: 15, color: '#f5d669', fontWeight: 700 }}>黄金命中！</div>
-                <div style={{ fontSize: 10, color: '#8b7355', marginTop: 2 }}>在黄金窗口内锁定 — 数据精度达到最优</div>
-              </div>
-            )}
-            {justResult === 'hit' && (
-              <div>
-                <div style={{ fontSize: 36, marginBottom: 2 }}>✅</div>
-                <div style={{ fontSize: 15, color: '#8fae78', fontWeight: 700 }}>读数已锁定</div>
-                <div style={{ fontSize: 10, color: '#8b7355', marginTop: 2 }}>命中目标窗口，数据可用</div>
-              </div>
-            )}
-            {justResult === 'miss' && (
-              <div>
-                <div style={{ fontSize: 36, marginBottom: 2 }}>💨</div>
-                <div style={{ fontSize: 15, color: '#d98f72', fontWeight: 700 }}>窗口错过</div>
-                <div style={{ fontSize: 10, color: '#8b7355', marginTop: 2 }}>指针偏离目标区间</div>
-              </div>
-            )}
-          </motion.div>
+            ⏱ 开始校准 ({totalRounds}轮)
+          </motion.button>
         )}
-      </AnimatePresence>
-
-      {/* 开始按钮 */}
-      {phase === 'idle' && (
-        <motion.button
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={startGame}
-          style={{
-            padding: '10px 32px', background: 'rgba(215,189,115,0.1)',
-            border: '1px solid rgba(215,189,115,0.4)', borderRadius: 8,
-            color: '#d7bd73', cursor: 'pointer', fontSize: 14,
-            fontFamily: 'monospace',
-          }}
-        >
-          ⏱ 开始校准 ({totalRounds}轮)
-        </motion.button>
-      )}
+      </div>
 
       {/* 最终结果 */}
       {phase === 'done' && (() => {
