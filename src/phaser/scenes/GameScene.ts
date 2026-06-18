@@ -973,6 +973,13 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(300, () => this.updateObjective())
     }))
 
+    // P0: 风险 ≥ 80 强制提前结束
+    un.push(bus.on('game:force-over', () => {
+      this.time.delayedCall(1500, () => {
+        bus.emit('game:over', { stats: this.stats, flags: { ...this.gameFlags } })
+      })
+    }))
+
     // 挑战模式设置
     un.push(bus.on('challenge:mode', (mode: string) => {
       this.challengeMode = mode
@@ -1846,8 +1853,17 @@ export class GameScene extends Phaser.Scene {
 
       const lines = [
         { speaker: '系统', text: success ? '✅ 第一步完成！请前往下一个标记点位。' : '⚠️ 操作出现失误，继续执行后续步骤。' },
-        { speaker: '系统', text: `第二步：${task.steps[1].description}` },
       ]
+
+      // P2: NPC 任务中途进度反馈
+      if (task.midTaskDialog) {
+        const npc = NPC_CONFIGS[task.npcKey]
+        if (npc) {
+          lines.push({ speaker: `${npc.name}（${npc.title}）`, text: task.midTaskDialog })
+        }
+      }
+
+      lines.push({ speaker: '系统', text: `第二步：${task.steps[1].description}` })
 
       if (shouldShowRisk && riskEvent) {
         lines.splice(1, 0, { speaker: '⚠️ 风险警报', text: riskEvent.message })

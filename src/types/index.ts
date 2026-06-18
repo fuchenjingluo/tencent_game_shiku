@@ -58,6 +58,7 @@ export interface Task {
   briefing: string
   steps: [TaskStep, TaskStep]
   completedMessage: string
+  midTaskDialog?: string  // NPC 在第一步完成后、第二步开始前的进展反馈
 }
 
 export type Stat = 'reputation' | 'risk' | 'evidence' | 'budget'

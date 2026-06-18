@@ -259,7 +259,16 @@ export class TouristManager {
     const colors = [0x6eb5c0, 0xe8a87c, 0xc4a882]
     spr.setTint(colors[variant % colors.length])
 
-    const label = this.scene.add.text(sx, sy - 16, '🧑 游客', {
+    // P2: 游客类型视觉差异化 — 不同标签、不同造型提示
+    const touristTypes = [
+      { emoji: '🧑', label: '游客', scale: 0.7 },
+      { emoji: '😰', label: '焦虑游客', scale: 0.65 },
+      { emoji: '🧐', label: '好奇游客', scale: 0.72 },
+    ]
+    const type = touristTypes[variant % touristTypes.length]
+    spr.setScale(type.scale)
+
+    const label = this.scene.add.text(sx, sy - 16, `${type.emoji} ${type.label}`, {
       fontSize: '9px', color: '#c8dee8', fontFamily: 'monospace',
       stroke: '#000000', strokeThickness: 3,
       backgroundColor: '#0d0a05cc',

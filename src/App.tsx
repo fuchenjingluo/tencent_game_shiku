@@ -640,7 +640,7 @@ export default function App() {
   const handleRestart = useCallback(() => {
     destroyGame()
     destroyAudio()
-    deleteSave()
+    deleteSaveSlot(saveSlotRef.current)
 
     // NG+: 如果已有至少一次通关记录，显示加成选择
     if (playthroughCount > 0) {

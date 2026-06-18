@@ -1,56 +1,82 @@
 // ────────────────────────────────────────────────────────────────────────────
-// 存档系统 v2.0 — 包含 gameFlags + throttle 防抖
+// 存档系统 v3.0 — 多存档位 + gameFlags + throttle 防抖
 // ────────────────────────────────────────────────────────────────────────────
 import type { GameSave, GameStats, ActiveTask, GameFlags } from '../types'
 
-const SAVE_KEY = 'shiku_guardian_save'
-export const SAVE_VERSION = 2  // 升级版本号（v1→v2：增加了 gameFlags）
-const SAVE_THROTTLE_MS = 2000  // 最短写盘间隔
-let _lastSaveTime = 0
-let _pendingSave: ReturnType<typeof setTimeout> | null = null
+const SLOT_COUNT = 3
+export const SAVE_VERSION = 2
+const SAVE_THROTTLE_MS = 2000
 
-export function loadSave(): GameSave | null {
+function key(index: number) {
+  return `shiku_guardian_save_${index}`
+}
+
+// ─── throttle 管理 — 每个槽位独立 ──────────────────────────────────────────
+const _lastSaveTime: Record<number, number> = {}
+const _pendingSave: Record<number, ReturnType<typeof setTimeout> | null> = {}
+
+export interface SaveSlotMeta {
+  index: number
+  save: GameSave
+}
+
+/** 列出所有有数据的存档槽位 */
+export function listSaves(): SaveSlotMeta[] {
+  const result: SaveSlotMeta[] = []
+  for (let i = 0; i < SLOT_COUNT; i++) {
+    const raw = localStorage.getItem(key(i))
+    if (!raw) continue
+    try {
+      const data = JSON.parse(raw) as GameSave
+      result.push({ index: i, save: upgrade(data) })
+    } catch { /* skip corrupt */ }
+  }
+  return result.sort((a, b) => b.save.timestamp - a.save.timestamp)
+}
+
+/** 加载指定槽位的存档 */
+export function loadSave(slotIndex: number): GameSave | null {
   try {
-    const raw = localStorage.getItem(SAVE_KEY)
+    const raw = localStorage.getItem(key(slotIndex))
     if (!raw) return null
-    const data = JSON.parse(raw) as GameSave
-    // 兼容旧存档（v1 没有 gameFlags）
-    if (data.version < SAVE_VERSION) {
-      return {
-        ...data,
-        version: SAVE_VERSION,
-        gameFlags: data.gameFlags ?? {},
-      } as GameSave
-    }
-    return data
+    return upgrade(JSON.parse(raw) as GameSave)
   } catch {
     return null
   }
 }
 
+/** 升级旧存档格式 */
+function upgrade(data: GameSave): GameSave {
+  if (data.version < SAVE_VERSION) {
+    return { ...data, version: SAVE_VERSION, gameFlags: data.gameFlags ?? {} }
+  }
+  return data
+}
+
+/** 写入存档到指定槽位 */
 export function writeSave(
+  slotIndex: number,
   stats: GameStats,
   completedTasks: string[],
   activeTask: ActiveTask | null,
   gameFlags: GameFlags = {},
 ): void {
   const now = Date.now()
-  const elapsed = now - _lastSaveTime
+  const elapsed = now - (_lastSaveTime[slotIndex] ?? 0)
 
-  // ★ throttle：距上次写盘 < 2s → 延迟写入（最后一份数据覆盖之前排队的）
   if (elapsed < SAVE_THROTTLE_MS) {
-    if (_pendingSave) clearTimeout(_pendingSave)
-    _pendingSave = setTimeout(
-      () => doWriteSave(stats, completedTasks, activeTask, gameFlags),
+    if (_pendingSave[slotIndex]) clearTimeout(_pendingSave[slotIndex]!)
+    _pendingSave[slotIndex] = setTimeout(
+      () => doWriteSave(slotIndex, stats, completedTasks, activeTask, gameFlags),
       SAVE_THROTTLE_MS - elapsed,
     )
     return
   }
-
-  doWriteSave(stats, completedTasks, activeTask, gameFlags)
+  doWriteSave(slotIndex, stats, completedTasks, activeTask, gameFlags)
 }
 
 function doWriteSave(
+  slotIndex: number,
   stats: GameStats,
   completedTasks: string[],
   activeTask: ActiveTask | null,
@@ -65,17 +91,16 @@ function doWriteSave(
     timestamp: Date.now(),
   }
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(save))
-    _lastSaveTime = Date.now()
-  } catch {
-    // storage full, ignore
-  }
-  if (_pendingSave) {
-    clearTimeout(_pendingSave)
-    _pendingSave = null
+    localStorage.setItem(key(slotIndex), JSON.stringify(save))
+    _lastSaveTime[slotIndex] = Date.now()
+  } catch { /* storage full, ignore */ }
+  if (_pendingSave[slotIndex]) {
+    clearTimeout(_pendingSave[slotIndex]!)
+    _pendingSave[slotIndex] = null
   }
 }
 
-export function deleteSave(): void {
-  localStorage.removeItem(SAVE_KEY)
+/** 删除指定槽位的存档 */
+export function deleteSaveSlot(slotIndex: number): void {
+  localStorage.removeItem(key(slotIndex))
 }
