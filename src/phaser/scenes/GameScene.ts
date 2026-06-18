@@ -1491,8 +1491,8 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    // ── P2: 支线任务交互 ──（仅在无活跃主线任务时触发）
-    if (this.activeSideQuest && !this.activeTask) {
+    // ── P2: 支线任务交互 ──（支线任务优先于主线，因为玩家主动接受了支线）
+    if (this.activeSideQuest) {
       const sq = SIDE_QUESTS.find((q) => q.id === this.activeSideQuest)
       if (sq) {
         const targetPoint = sq.id === 'sq_lost_phone' ? 'rear-humidity' : 'mural-monitor'
