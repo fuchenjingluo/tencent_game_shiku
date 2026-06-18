@@ -86,6 +86,8 @@ export class GameScene extends Phaser.Scene {
   private activeSideQuest: string | null = null
   private touristNPCInteract: Phaser.GameObjects.Sprite | null = null
   private touristNPCLabel: Phaser.GameObjects.Text | null = null
+  private restorerNPCInteract: Phaser.GameObjects.Sprite | null = null
+  private restorerNPCLabel: Phaser.GameObjects.Text | null = null
   private busUnsubs: (() => void)[] = []  // ★ bus.on() 返回的取消订阅函数，shutdown 时清理
 
   constructor() {
@@ -1078,6 +1080,37 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  // ── P2: 文物修复师独立 NPC ──
+  // 出现在壁画区，替代通用游客咨询台来触发壁画拼图任务
+  private setupRestorerNPC() {
+    if (this.restorerNPCInteract) return
+    const center = getRoomCenter('mural-room')
+    const px = center.x + 5 * TILE_SIZE
+    const py = center.y + 5 * TILE_SIZE
+    this.restorerNPCInteract = this.add.sprite(px, py, 'interact_point')
+    this.restorerNPCInteract.setDepth(Math.floor(py / 28)).setScale(1).setTint(0xd4a76a)
+    this.restorerNPCInteract.setData('type', 'sidequest_npc')
+    this.restorerNPCInteract.setData('name', '文物修复师')
+    this.restorerNPCLabel = this.add.text(px, py - 18, '🧤 文物修复师', {
+      fontSize: '9px', color: '#d4a76a', fontFamily: 'monospace',
+      backgroundColor: '#0d0a05bb',
+      padding: { x: 4, y: 2 },
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(Math.floor(py / 28) + 0.5)
+    this.tweens.add({
+      targets: [this.restorerNPCInteract],
+      y: py - 3, duration: 1800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+    })
+  }
+
+  /** 文物修复师出现条件：主线任务视角 — 壁画区巡查(task_1)相关时可见 */
+  private checkRestorerAvailable(): boolean {
+    // 文物修复师在壁画区一直可见 — 他是常驻 NPC，提供壁画修复的情境引导
+    // 仅在 task_5 完成后（游戏终章）隐藏
+    return !this.completedTasks.has('task_5')
+  }
+
   private checkSideQuestAvailable(): boolean {
     if (this.completedSideQuests.size >= SIDE_QUESTS.length) return false
     if (!this.completedTasks.has('task_2')) return false
@@ -1306,6 +1339,19 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
+    // P2: 文物修复师 NPC 提示（壁画区内独立NPC）
+    if (this.restorerNPCInteract?.visible) {
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y,
+        this.restorerNPCInteract.x, this.restorerNPCInteract.y)
+      if (dist < INTERACT_RADIUS) {
+        this.interactHint.setText('[E] 🧤 文物修复师')
+        this.interactHint.setPosition(this.player.x - this.interactHint.width / 2, this.player.y - 32)
+        this.interactHint.setVisible(true)
+        this.interactHint.setColor('#d4a76a')
+        return
+      }
+    }
+
     // P2: 支线任务NPC提示
     if (this.touristNPCInteract?.visible) {
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y,
@@ -1348,7 +1394,17 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    // P2: 支线任务 NPC
+    // P2a: 文物修复师 NPC（壁画区独立NPC）
+    if (this.restorerNPCInteract?.visible) {
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y,
+        this.restorerNPCInteract.x, this.restorerNPCInteract.y)
+      if (dist < INTERACT_RADIUS) {
+        this.onInteractRestorer()
+        return
+      }
+    }
+
+    // P2b: 支线任务 NPC（通用游客咨询台）
     if (this.touristNPCInteract?.visible) {
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y,
         this.touristNPCInteract.x, this.touristNPCInteract.y)
@@ -1603,6 +1659,35 @@ export class GameScene extends Phaser.Scene {
           setFlags: { ['tourist_harsh_' + event.id]: true },
         },
       ],
+    }
+  }
+
+  /** P2a: 文物修复师独立NPC — 壁画区的语境引导角色 */
+  private onInteractRestorer() {
+    bus.emit('ui:lock-input', true)
+
+    // 根据主线进度提供不同对话
+    if (this.activeTask?.taskId === 'task_1') {
+      bus.emit('open:dialog', {
+        lines: [
+          { speaker: '🧤 文物修复师', text: '壁画的碎片我已经按唐代的笔触分好类了。去监测点试试拼接吧——每一片都对应着千年前的一笔。' },
+        ],
+        onClose: () => { this.inputLocked = false },
+      })
+    } else if (this.completedTasks.has('task_1')) {
+      bus.emit('open:dialog', {
+        lines: [
+          { speaker: '🧤 文物修复师', text: '多亏了你上次的拼接，壁画现在完整多了。但真正的工作才刚开始——石窟里还有更多需要修复的地方。' },
+        ],
+        onClose: () => { this.inputLocked = false },
+      })
+    } else {
+      bus.emit('open:dialog', {
+        lines: [
+          { speaker: '🧤 文物修复师', text: '这些是从第17窟脱落的壁画碎片。等接待处下达巡查任务后，来监测点试试你的手艺。' },
+        ],
+        onClose: () => { this.inputLocked = false },
+      })
     }
   }
 
@@ -2251,6 +2336,11 @@ export class GameScene extends Phaser.Scene {
     if (this.completedTasks.has('task_2') && !this.completedTasks.has('task_5')) {
       this.setupSideQuestNPC()
     }
+
+    // P2: 文物修复师 — 壁画区常驻 NPC（主线相关，非支线）
+    if (!this.completedTasks.has('task_5')) {
+      this.setupRestorerNPC()
+    }
   }
 
   /** 支线任务 NPC 可见性 */
@@ -2264,6 +2354,18 @@ export class GameScene extends Phaser.Scene {
       const y = this.touristNPCInteract.y
       this.touristNPCInteract.setDepth(Math.floor(y / 28))
       this.touristNPCLabel?.setDepth(Math.floor(y / 28) + 0.5)
+    }
+
+    // 文物修复师 NPC 可见性
+    if (this.restorerNPCInteract) {
+      const restorerAvail = this.checkRestorerAvailable()
+      this.restorerNPCInteract.setVisible(restorerAvail)
+      this.restorerNPCLabel?.setVisible(restorerAvail)
+      if (restorerAvail) {
+        const y = this.restorerNPCInteract.y
+        this.restorerNPCInteract.setDepth(Math.floor(y / 28))
+        this.restorerNPCLabel?.setDepth(Math.floor(y / 28) + 0.5)
+      }
     }
   }
 }

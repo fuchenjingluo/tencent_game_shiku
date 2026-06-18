@@ -166,6 +166,7 @@ function getMiniGameName(type: string): string {
   const names: Record<string, string> = {
     trace: '路径描摹', memory: '序列记忆', match: '翻牌配对',
     timing: '时机按键', calibrate: '精密校准', wire: '接线连接', sequence: '顺序排列',
+    puzzle: '壁画修复',
   }
   return names[type] ?? type
 }

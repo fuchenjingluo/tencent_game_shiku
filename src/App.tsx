@@ -69,6 +69,44 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
 
 type AppPhase = 'loading' | 'title' | 'playing' | 'gameover' | 'ngplus' | 'achievements' | 'conversion'
 
+// ─── 属性危险值配置 ──────────────────────────────────────────────────────────
+interface StatDangerConfig {
+  stat: keyof GameStats
+  label: string
+  icon: string
+  color: string
+  check: (v: number) => boolean     // true = 进入危险
+  alertTitle: string
+  alertMessage: string
+}
+
+const STAT_DANGER_CONFIGS: StatDangerConfig[] = [
+  {
+    stat: 'reputation', label: '声誉', icon: '⭐', color: '#d98f72',
+    check: (v) => v <= 30,
+    alertTitle: '声誉岌岌可危！',
+    alertMessage: '石窟保护工作的公众支持度已跌至危险水平。声誉过低将导致资源撤回，修复工作陷入困境。\n\n你可以使用顶部的【🔄 转化】按钮，将多余的证据转化为声誉，稳定局面。',
+  },
+  {
+    stat: 'risk', label: '风险', icon: '⚠️', color: '#d95a54',
+    check: (v) => v >= 60,
+    alertTitle: '石窟风险等级已达"危险"！',
+    alertMessage: '当前结构性风险过高，壁画和洞窟面临不可逆损伤。风险达到 80 将触发危机事件，局面可能失控。\n\n你可以使用顶部的【🔄 转化】按钮，将声誉或预算转化为风险降低措施。',
+  },
+  {
+    stat: 'evidence', label: '证据', icon: '📄', color: '#d9a063',
+    check: (v) => v <= 20,
+    alertTitle: '证据数据严重不足！',
+    alertMessage: '缺乏充分的监测数据，任何决策都将缺乏依据，评级也会大幅下降。\n\n你可以使用顶部的【🔄 转化】按钮，将预算投入数据采集，快速补充证据。',
+  },
+  {
+    stat: 'budget', label: '预算', icon: '💰', color: '#7ab8d9',
+    check: (v) => v <= 2,
+    alertTitle: '预算即将耗尽！',
+    alertMessage: '运营资金已不足以支撑下一步修复工作。预算归零时部分选项将被锁定。\n\n你可以使用顶部的【🔄 转化】按钮，将积累的证据转化为经费支持。',
+  },
+]
+
 // ─── 模块级标志 — 不受 React StrictMode 双 mount 影响 ───
 let autoGameCreated = false
 let pendingGameStart = false  // ★ 标记"开始游戏"触发的 boot，完成后切到 playing 而非 title
@@ -90,6 +128,10 @@ export default function App() {
   const [challengeMode, setChallengeMode] = useState<ChallengeMode | null>(null)
   const challengeModeRef = useRef<ChallengeMode | null>(null)
   const activeTaskRef = useRef<ActiveTask | null>(null)
+
+  // 属性危险值提示 — 每种属性只弹一次
+  const [dangerAlert, setDangerAlert] = useState<StatDangerConfig | null>(null)
+  const shownDangerAlertsRef = useRef<Set<keyof GameStats>>(new Set())
 
   // 运行元数据 — 成就检测用
   const runMetaRef = useRef<Omit<AchievementRunMeta, 'stats' | 'flags' | 'ending'>>({
@@ -195,6 +237,9 @@ export default function App() {
       }
       styleCountRef.current = { professional: 0, compromise: 0, risky: 0 }
       runStartTime.current = Date.now()
+      // 重置危险值提示记录（新局从零开始）
+      shownDangerAlertsRef.current = new Set()
+      setDangerAlert(null)
       // 每日/混沌模式初始化
       if (mode === 'daily') {
         dailySeedRef.current = generateDailySeed()
@@ -475,6 +520,22 @@ export default function App() {
       ;(Object.entries(effectiveDeltas) as [Stat, number][]).forEach(([key, val]) => {
         next[key] = Math.max(0, Math.min(key === 'budget' ? 20 : 100, next[key] + val))
       })
+
+      // ═══ 危险值首次触发检测 ═══
+      // 在这里用 setTimeout 触发 React state 更新，避免在 setStats 内嵌套另一个 setState
+      setTimeout(() => {
+        for (const cfg of STAT_DANGER_CONFIGS) {
+          if (
+            cfg.check(next[cfg.stat]) &&
+            !shownDangerAlertsRef.current.has(cfg.stat)
+          ) {
+            shownDangerAlertsRef.current.add(cfg.stat)
+            setDangerAlert(cfg)
+            break  // 每次只弹一个，避免叠加
+          }
+        }
+      }, 0)
+
       return next
     })
 
@@ -615,6 +676,18 @@ export default function App() {
                 setRiskEvent(null)
                 bus.emit('ui:risk-event-closed')
               }} />
+            )}
+
+            {/* 属性危险值首次提示 */}
+            {dangerAlert && !riskEvent && (
+              <StatDangerAlertPopup
+                config={dangerAlert}
+                onClose={() => setDangerAlert(null)}
+                onOpenConversion={() => {
+                  setDangerAlert(null)
+                  setPhase('conversion')
+                }}
+              />
             )}
 
             {/* 小地图 */}
@@ -887,5 +960,142 @@ function RiskEventPopup({ event, onClose }: { event: RiskEvent; onClose: () => v
         </button>
       </div>
     </div>
+  )
+}
+
+// ─── 属性危险值首次提示弹窗 ────────────────────────────────────────────────
+
+function StatDangerAlertPopup({
+  config,
+  onClose,
+  onOpenConversion,
+}: {
+  config: StatDangerConfig
+  onClose: () => void
+  onOpenConversion: () => void
+}) {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 200)
+    return () => clearTimeout(t)
+  }, [])
+
+  const handleClose = () => {
+    setVisible(false)
+    setTimeout(onClose, 300)
+  }
+  const handleConversion = () => {
+    setVisible(false)
+    setTimeout(onOpenConversion, 300)
+  }
+
+  // 将消息里的 \n\n 转成段落
+  const paragraphs = config.alertMessage.split('\n\n')
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={visible ? { opacity: 1 } : { opacity: 0 }}
+      transition={{ duration: 0.25 }}
+      style={{
+        position: 'absolute', inset: 0, zIndex: 175,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(12,11,9,0.65)',
+        pointerEvents: 'all',
+      }}
+    >
+      <motion.div
+        initial={{ scale: 0.88, y: 20, opacity: 0 }}
+        animate={visible ? { scale: 1, y: 0, opacity: 1 } : { scale: 0.88, y: 20, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 220, damping: 22 }}
+        style={{
+          background: 'rgba(18,17,13,0.98)',
+          border: `1.5px solid ${config.color}55`,
+          borderRadius: 14,
+          padding: '28px 30px',
+          maxWidth: 400,
+          width: '88%',
+          boxShadow: `0 0 48px ${config.color}20`,
+          position: 'relative',
+        }}
+      >
+        {/* 顶部关闭按钮 */}
+        <button
+          onClick={handleClose}
+          style={{
+            position: 'absolute', top: 12, right: 12,
+            background: 'none',
+            border: '1px solid rgba(215,189,115,0.2)',
+            borderRadius: 4, color: '#8b7355',
+            cursor: 'pointer', fontSize: 12, padding: '1px 7px',
+            lineHeight: '18px',
+          }}
+        >✕</button>
+
+        {/* 图标 + 标题 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <motion.span
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ duration: 0.8, repeat: 2 }}
+            style={{ fontSize: 28 }}
+          >{config.icon}</motion.span>
+          <div>
+            <div style={{
+              fontSize: 14, fontWeight: 700,
+              color: config.color,
+              letterSpacing: '0.03em',
+            }}>{config.alertTitle}</div>
+            <div style={{ fontSize: 10, color: '#5a5040', fontFamily: 'monospace', marginTop: 2 }}>
+              {config.label} 已进入危险区间
+            </div>
+          </div>
+        </div>
+
+        {/* 正文 */}
+        <div style={{ fontSize: 11.5, color: '#8b7355', lineHeight: 1.7, marginBottom: 20 }}>
+          {paragraphs.map((p, i) => (
+            <p key={i} style={{ margin: i === 0 ? 0 : '10px 0 0' }}>{p}</p>
+          ))}
+        </div>
+
+        {/* 操作按钮 */}
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button
+            onClick={handleClose}
+            style={{
+              padding: '7px 18px',
+              background: 'transparent',
+              border: '1px solid #3d3322',
+              borderRadius: 6,
+              color: '#8b7355',
+              cursor: 'pointer',
+              fontSize: 12,
+              fontFamily: 'monospace',
+            }}
+          >
+            知道了
+          </button>
+          <motion.button
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={handleConversion}
+            style={{
+              padding: '7px 18px',
+              background: `${config.color}18`,
+              border: `1px solid ${config.color}55`,
+              borderRadius: 6,
+              color: config.color,
+              cursor: 'pointer',
+              fontSize: 12,
+              fontFamily: 'monospace',
+              fontWeight: 600,
+            }}
+          >
+            🔄 立即转化
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
   )
 }
