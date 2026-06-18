@@ -4,7 +4,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { GameSave, AchievementState, ChallengeMode } from '../types'
-import { loadSave } from '../hooks/useSave'
 import { ChallengeSelector } from './ui/ChallengeSelector'
 
 interface TitleScreenProps {
@@ -17,10 +16,8 @@ interface TitleScreenProps {
 
 export function TitleScreen({ onStart, onAchievements, achievementProgress, onChallengeMode, playthroughCount = 0 }: TitleScreenProps) {
   const [phase, setPhase] = useState<'logo' | 'title' | 'challenge'>('logo')
-  const [existingSave, setExistingSave] = useState<GameSave | null>(null)
 
   useEffect(() => {
-    setExistingSave(loadSave())
     setTimeout(() => setPhase('title'), 2000)
   }, [])
 
@@ -119,27 +116,6 @@ export function TitleScreen({ onStart, onAchievements, achievementProgress, onCh
               >
                 🏛 开始游戏
               </motion.button>
-
-              {existingSave && (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => onStart(existingSave)}
-                  style={{
-                    padding: '10px 32px',
-                    background: 'rgba(143,174,120,0.08)',
-                    border: '1px solid rgba(143,174,120,0.3)',
-                    borderRadius: 6,
-                    color: '#8fae78',
-                    cursor: 'pointer',
-                    fontSize: 13,
-                    fontFamily: 'monospace',
-                    width: 220,
-                  }}
-                >
-                  📂 继续游戏
-                </motion.button>
-              )}
 
               {onAchievements && (
                 <motion.button
