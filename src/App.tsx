@@ -6,8 +6,8 @@ import { motion } from 'framer-motion'
 import { bus } from './events/bus'
 import { createGame, destroyGame, getGameScene } from './phaser/gameFactory'
 import { INITIAL_STATS, TASKS, STORY_EVENTS, SIDE_QUESTS } from './data/gameData'
-import { writeSave, deleteSave } from './hooks/useSave'
-import { initAudio, destroyAudio } from './audio/audioManager'
+import { writeSave, deleteSaveSlot, listSaves } from './hooks/useSave'
+import { initAudio, destroyAudio, setVolume } from './audio/audioManager'
 import { ConversionPanel } from './components/ConversionPanel'
 import { HUD } from './components/hud/HUD'
 import { DialogController } from './components/dialog/DialogBox'
@@ -83,21 +83,21 @@ interface StatDangerConfig {
 const STAT_DANGER_CONFIGS: StatDangerConfig[] = [
   {
     stat: 'reputation', label: '声誉', icon: '⭐', color: '#d98f72',
-    check: (v) => v <= 30,
+    check: (v) => v <= 20,
     alertTitle: '声誉岌岌可危！',
     alertMessage: '石窟保护工作的公众支持度已跌至危险水平。声誉过低将导致资源撤回，修复工作陷入困境。\n\n你可以使用顶部的【🔄 转化】按钮，将多余的证据转化为声誉，稳定局面。',
   },
   {
     stat: 'risk', label: '风险', icon: '⚠️', color: '#d95a54',
-    check: (v) => v >= 60,
+    check: (v) => v >= 70,
     alertTitle: '石窟风险等级已达"危险"！',
     alertMessage: '当前结构性风险过高，壁画和洞窟面临不可逆损伤。风险达到 80 将触发危机事件，局面可能失控。\n\n你可以使用顶部的【🔄 转化】按钮，将声誉或预算转化为风险降低措施。',
   },
   {
     stat: 'evidence', label: '证据', icon: '📄', color: '#d9a063',
-    check: (v) => v <= 20,
+    check: (v) => v <= 5,
     alertTitle: '证据数据严重不足！',
-    alertMessage: '缺乏充分的监测数据，任何决策都将缺乏依据，评级也会大幅下降。\n\n你可以使用顶部的【🔄 转化】按钮，将预算投入数据采集，快速补充证据。',
+    alertMessage: '当前证据值已接近零点，即使已完成若干任务仍无有效证据积累。最终报告将因数据不足被驳回，石窟评级也会大幅下降。\n\n你可以使用顶部的【🔄 转化】按钮，将预算投入数据采集，快速补充证据。',
   },
   {
     stat: 'budget', label: '预算', icon: '💰', color: '#7ab8d9',
@@ -132,6 +132,14 @@ export default function App() {
   // 属性危险值提示 — 每种属性只弹一次
   const [dangerAlert, setDangerAlert] = useState<StatDangerConfig | null>(null)
   const shownDangerAlertsRef = useRef<Set<keyof GameStats>>(new Set())
+  const riskEarlyEndedRef = useRef(false)  // 风险强制结束，每局只触发一次
+  const conversionShownRef = useRef(false)  // 转化系统首次介绍，每局只弹一次
+  const saveSlotRef = useRef(0)             // 当前使用的存档槽位（0-2）
+
+  // P1: 设置面板 — 音量控制
+  const [showSettings, setShowSettings] = useState(false)
+  const [audioVolume, setAudioVolume] = useState(0.7)
+  const [audioMuted, setAudioMuted] = useState(false)
 
   // 运行元数据 — 成就检测用
   const runMetaRef = useRef<Omit<AchievementRunMeta, 'stats' | 'flags' | 'ending'>>({
@@ -197,9 +205,23 @@ export default function App() {
     initAudio()
     const mode = challengeModeRef.current
 
+    // P3: 自动选择存档槽位 — 优先空槽，否则覆盖最旧的
+    if (!save) {
+      const existing = listSaves()
+      if (existing.length < 3) {
+        const used = new Set(existing.map((s) => s.index))
+        for (let i = 0; i < 3; i++) {
+          if (!used.has(i)) { saveSlotRef.current = i; break }
+        }
+      } else {
+        // 全部满：覆盖最旧的
+        saveSlotRef.current = existing[existing.length - 1].index
+      }
+    }
+
     // 铁人模式：不接受存档，删除已有存档
     if (mode === 'ironman') {
-      deleteSave()
+      deleteSaveSlot(saveSlotRef.current)
       save = null
     }
 
@@ -239,6 +261,8 @@ export default function App() {
       runStartTime.current = Date.now()
       // 重置危险值提示记录（新局从零开始）
       shownDangerAlertsRef.current = new Set()
+      riskEarlyEndedRef.current = false
+      conversionShownRef.current = false
       setDangerAlert(null)
       // 每日/混沌模式初始化
       if (mode === 'daily') {
@@ -289,7 +313,7 @@ export default function App() {
         const newCount = playthroughCount + 1
         setPlaythroughCount(newCount)
         setPhase('gameover')
-        deleteSave()
+        deleteSaveSlot(saveSlotRef.current)
 
         // 运行成就检测
         incrementPlaythroughs()
@@ -415,7 +439,7 @@ export default function App() {
   useEffect(() => {
     if (phase !== 'playing') return
     if (challengeMode === 'ironman') return
-    writeSave(stats, completedTasks, activeTaskRef.current, gameFlags)
+    writeSave(saveSlotRef.current, stats, completedTasks, activeTaskRef.current, gameFlags)
   }, [stats, completedTasks, phase, gameFlags, challengeMode])
 
   // 处理选择
@@ -524,6 +548,12 @@ export default function App() {
       // ═══ 危险值首次触发检测 ═══
       // 在这里用 setTimeout 触发 React state 更新，避免在 setStats 内嵌套另一个 setState
       setTimeout(() => {
+        // P0: 风险 ≥ 80 强制提前结束
+        if (next.risk >= 80 && !riskEarlyEndedRef.current) {
+          riskEarlyEndedRef.current = true
+          bus.emit('game:force-over')
+          return  // 不再弹危险提示
+        }
         for (const cfg of STAT_DANGER_CONFIGS) {
           if (
             cfg.check(next[cfg.stat]) &&
@@ -586,6 +616,24 @@ export default function App() {
     }
 
     scene.advanceTask(success, deltas as Record<string, number>)
+
+    // P1: 首次完成任务步骤后弹出转化系统介绍（每种任务至少完成一步才弹）
+    if (!conversionShownRef.current && runMetaRef.current.minigameAttempts >= 1) {
+      conversionShownRef.current = true
+      // 异步弹出，避免与小游戏结算弹窗重叠
+      setTimeout(() => {
+        bus.emit('ui:lock-input', true)
+        bus.emit('open:dialog', {
+          lines: [
+            { speaker: '💡 系统提示', text: '你已经完成了第一项操作。接下来，你将面对越来越艰难的决策。' },
+            { speaker: '🔄 属性转化', text: '当某项属性陷入危险时，可以使用【属性转化】功能——消耗一种富裕的属性换取另一种紧缺的属性。' },
+            { speaker: '🔄 属性转化', text: '例如：用累积的证据掩盖风险、动用预算购买声誉、或用公众支持换取紧急修复资金。每个转化操作只能使用一次，请谨慎选择时机。' },
+            { speaker: '💡 提示', text: '点击 HUD 面板右上角的【🔄 转化】按钮即可随时查看可用的转化操作。' },
+          ],
+        })
+        bus.emit('ui:lock-input', false)
+      }, 1500)
+    }
   }, [])
 
   // 重玩
@@ -690,6 +738,43 @@ export default function App() {
               />
             )}
 
+            {/* P1: 设置面板 */}
+            {showSettings && (
+              <SettingsPanel
+                volume={audioVolume}
+                muted={audioMuted}
+                onVolumeChange={(v) => {
+                  setAudioVolume(v)
+                  if (!audioMuted) setVolume(v)
+                }}
+                onMuteToggle={() => {
+                  const next = !audioMuted
+                  setAudioMuted(next)
+                  setVolume(next ? 0 : audioVolume)
+                }}
+                onClose={() => setShowSettings(false)}
+              />
+            )}
+
+            {/* 设置按钮 — 右上角 */}
+            <button
+              onClick={() => setShowSettings(true)}
+              style={{
+                position: 'absolute', top: 12, right: 16,
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 6,
+                color: '#8a8a7a',
+                fontSize: 14,
+                width: 32, height: 32,
+                cursor: 'pointer',
+                pointerEvents: 'all',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: 0,
+              }}
+              title="设置"
+            >⚙</button>
+
             {/* 小地图 */}
             <div style={{
               position: 'absolute', bottom: 16, right: 16,
@@ -708,7 +793,7 @@ export default function App() {
 
             <div style={{
               position: 'absolute', bottom: 16, left: 16,
-              fontSize: 9, color: '#3d3322',
+              fontSize: 9, color: '#8a8a7a',
               fontFamily: 'monospace', lineHeight: 1.6,
               pointerEvents: 'none',
             }}>
@@ -1094,6 +1179,123 @@ function StatDangerAlertPopup({
           >
             🔄 立即转化
           </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+// ─── 设置面板 ────────────────────────────────────────────────────────────
+function SettingsPanel({
+  volume,
+  muted,
+  onVolumeChange,
+  onMuteToggle,
+  onClose,
+}: {
+  volume: number
+  muted: boolean
+  onVolumeChange: (v: number) => void
+  onMuteToggle: () => void
+  onClose: () => void
+}) {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 100)
+    return () => clearTimeout(t)
+  }, [])
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={visible ? { opacity: 1 } : { opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      style={{
+        position: 'absolute', inset: 0, zIndex: 180,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(12,11,9,0.6)',
+        pointerEvents: 'all',
+      }}
+    >
+      <motion.div
+        initial={{ scale: 0.9, y: 10, opacity: 0 }}
+        animate={visible ? { scale: 1, y: 0, opacity: 1 } : { scale: 0.9, y: 10, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+        style={{
+          background: 'rgba(18,17,13,0.98)',
+          border: '1px solid rgba(215,189,115,0.2)',
+          borderRadius: 12,
+          padding: '24px 28px',
+          maxWidth: 340,
+          width: '85%',
+          position: 'relative',
+        }}
+      >
+        {/* 关闭按钮 */}
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute', top: 10, right: 10,
+            background: 'none', border: '1px solid rgba(215,189,115,0.15)',
+            borderRadius: 4, color: '#8b7355', cursor: 'pointer',
+            fontSize: 12, padding: '1px 7px', lineHeight: '18px',
+          }}
+        >✕</button>
+
+        <div style={{
+          fontSize: 13, fontWeight: 700, color: '#d7bd73', marginBottom: 20,
+          letterSpacing: '0.04em',
+        }}>⚙ 设置</div>
+
+        {/* 音量控制 */}
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 11, color: '#8a8a7a', fontFamily: 'monospace' }}>
+              🔊 音量
+            </span>
+            <span style={{ fontSize: 11, color: '#5a5040', fontFamily: 'monospace' }}>
+              {muted ? '静音' : `${Math.round(volume * 100)}%`}
+            </span>
+          </div>
+          <input
+            type="range"
+            min={0} max={1} step={0.05}
+            value={muted ? 0 : volume}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value)
+              onVolumeChange(v)
+            }}
+            style={{
+              width: '100%',
+              accentColor: '#d7bd73',
+              cursor: 'pointer',
+              opacity: muted ? 0.4 : 1,
+            }}
+          />
+        </div>
+
+        {/* 静音开关 */}
+        <div
+          onClick={onMuteToggle}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '8px 12px',
+            background: muted ? 'rgba(217,90,84,0.08)' : 'rgba(143,174,120,0.06)',
+            border: `1px solid ${muted ? 'rgba(217,90,84,0.2)' : 'rgba(143,174,120,0.15)'}`,
+            borderRadius: 6,
+            cursor: 'pointer',
+          }}
+        >
+          <span style={{ fontSize: 11, color: '#8a8a7a', fontFamily: 'monospace' }}>
+            🔇 静音
+          </span>
+          <span style={{
+            fontSize: 10, fontFamily: 'monospace',
+            color: muted ? '#d95a54' : '#8fae78',
+          }}>
+            {muted ? '已启用' : '未启用'}
+          </span>
         </div>
       </motion.div>
     </motion.div>
