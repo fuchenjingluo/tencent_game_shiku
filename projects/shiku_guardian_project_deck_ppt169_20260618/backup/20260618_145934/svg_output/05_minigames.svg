@@ -1,0 +1,73 @@
+﻿<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="scanScrim" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#12110d" stop-opacity="0.92"/>
+      <stop offset="70%" stop-color="#12110d" stop-opacity="0.74"/>
+      <stop offset="100%" stop-color="#12110d" stop-opacity="0.56"/>
+    </linearGradient>
+  </defs>
+  <g id="background">
+    <rect x="0" y="0" width="1280" height="720" fill="#12110d"/>
+    <image href="../images/bg_infrared_scan.png" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
+    <rect x="0" y="0" width="1280" height="720" fill="url(#scanScrim)"/>
+  </g>
+  <g id="header">
+    <text x="64" y="66" font-family="Consolas, monospace" font-size="14" fill="#2fb8a6">05 / NARRATIVE MINI-GAMES</text>
+    <text x="64" y="116" font-family="KaiTi, Georgia, serif" font-size="40" font-weight="bold" fill="#d7bd73">操作即叙事：8 种小游戏都对应真实文保动作</text>
+  </g>
+  <g id="principle">
+    <rect x="64" y="150" width="1152" height="66" rx="8" fill="#1b1811" fill-opacity="0.78" stroke="#5c4b2c"/>
+    <text x="92" y="190" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="21" fill="#f3ead2">玩家不是被“弹出小游戏”打断，而是在亲手完成红外扫描、湿度校准、碎片复原、档案整理等具体动作。</text>
+  </g>
+  <g id="game-grid">
+    <g id="tile-trace">
+      <rect x="64" y="250" width="260" height="112" rx="8" fill="#1b1811" fill-opacity="0.84" stroke="#2fb8a6" stroke-opacity="0.55"/>
+      <text x="92" y="289" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="23" font-weight="bold" fill="#f3ead2">描摹 Trace</text>
+      <text x="92" y="324" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="17" fill="#c8b98a">红外热像边界扫描</text>
+    </g>
+    <g id="tile-memory">
+      <rect x="356" y="250" width="260" height="112" rx="8" fill="#1b1811" fill-opacity="0.84" stroke="#5c4b2c"/>
+      <text x="384" y="289" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="23" font-weight="bold" fill="#f3ead2">记忆 Memory</text>
+      <text x="384" y="324" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="17" fill="#c8b98a">记录异常点与读数</text>
+    </g>
+    <g id="tile-match">
+      <rect x="648" y="250" width="260" height="112" rx="8" fill="#1b1811" fill-opacity="0.84" stroke="#5c4b2c"/>
+      <text x="676" y="289" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="23" font-weight="bold" fill="#f3ead2">配对 Match</text>
+      <text x="676" y="324" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="17" fill="#c8b98a">材料、工具与病害匹配</text>
+    </g>
+    <g id="tile-timing">
+      <rect x="940" y="250" width="276" height="112" rx="8" fill="#1b1811" fill-opacity="0.84" stroke="#b84a33" stroke-opacity="0.60"/>
+      <text x="968" y="289" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="23" font-weight="bold" fill="#f3ead2">时机 Timing</text>
+      <text x="968" y="324" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="17" fill="#c8b98a">注浆、确认、上电的窗口</text>
+    </g>
+    <g id="tile-calibrate">
+      <rect x="64" y="402" width="260" height="112" rx="8" fill="#1b1811" fill-opacity="0.84" stroke="#2fb8a6" stroke-opacity="0.55"/>
+      <text x="92" y="441" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="23" font-weight="bold" fill="#f3ead2">校准 Calibrate</text>
+      <text x="92" y="476" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="17" fill="#c8b98a">湿度传感器与设备参数</text>
+    </g>
+    <g id="tile-wire">
+      <rect x="356" y="402" width="260" height="112" rx="8" fill="#1b1811" fill-opacity="0.84" stroke="#5c4b2c"/>
+      <text x="384" y="441" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="23" font-weight="bold" fill="#f3ead2">接线 Wire</text>
+      <text x="384" y="476" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="17" fill="#c8b98a">备用电源与数据端口</text>
+    </g>
+    <g id="tile-sequence">
+      <rect x="648" y="402" width="260" height="112" rx="8" fill="#1b1811" fill-opacity="0.84" stroke="#5c4b2c"/>
+      <text x="676" y="441" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="23" font-weight="bold" fill="#f3ead2">排序 Sequence</text>
+      <text x="676" y="476" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="17" fill="#c8b98a">巡检时间线与报告结构</text>
+    </g>
+    <g id="tile-puzzle">
+      <rect x="940" y="402" width="276" height="112" rx="8" fill="#1b1811" fill-opacity="0.84" stroke="#d7bd73" stroke-opacity="0.60"/>
+      <text x="968" y="441" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="23" font-weight="bold" fill="#f3ead2">拼图 Puzzle</text>
+      <text x="968" y="476" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="17" fill="#c8b98a">壁画碎片复原</text>
+    </g>
+  </g>
+  <g id="bottom-claim">
+    <line x1="64" y1="582" x2="1216" y2="582" stroke="#5c4b2c" stroke-width="1"/>
+    <use data-icon="chunk-filled/chart-bar" x="64" y="610" width="32" height="32" fill="#d7bd73"/>
+    <text x="112" y="634" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="22" fill="#f3ead2">全流程避免重复操作：每个小游戏都服务于一次具体的文保判断。</text>
+  </g>
+  <g id="footer">
+    <text x="64" y="682" font-family="Consolas, monospace" font-size="12" fill="#8a7a55">MINI-GAMES AS CONSERVATION ACTIONS</text>
+    <text x="1190" y="682" font-family="Consolas, monospace" font-size="12" fill="#8a7a55">05</text>
+  </g>
+</svg>

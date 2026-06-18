@@ -1,0 +1,68 @@
+﻿<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hudScrim" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#12110d" stop-opacity="0.96"/>
+      <stop offset="55%" stop-color="#12110d" stop-opacity="0.78"/>
+      <stop offset="100%" stop-color="#12110d" stop-opacity="0.48"/>
+    </linearGradient>
+  </defs>
+  <g id="background">
+    <rect x="0" y="0" width="1280" height="720" fill="#12110d"/>
+    <image href="../images/bg_infrared_scan.png" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
+    <rect x="0" y="0" width="1280" height="720" fill="url(#hudScrim)"/>
+  </g>
+  <g id="header">
+    <text x="64" y="66" font-family="Consolas, monospace" font-size="14" fill="#2fb8a6">06 / SYSTEM ECONOMY</text>
+    <text x="64" y="116" font-family="KaiTi, Georgia, serif" font-size="40" font-weight="bold" fill="#d7bd73">四维经济：声誉、风险、证据、预算</text>
+  </g>
+  <g id="left-explainer">
+    <rect x="64" y="172" width="438" height="372" rx="8" fill="#1b1811" fill-opacity="0.84" stroke="#5c4b2c"/>
+    <text x="96" y="223" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="24" font-weight="bold" fill="#f3ead2">每一步都不是单点得失</text>
+    <text x="96" y="276" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="20" fill="#c8b98a">
+      <tspan x="96" dy="0">专业路线可能耗尽预算；</tspan>
+      <tspan x="96" dy="34">妥协路线会推高长期风险；</tspan>
+      <tspan x="96" dy="34">激进路线能快速见效，</tspan>
+      <tspan x="96" dy="34">也可能损伤声誉与因果链。</tspan>
+    </text>
+    <rect x="96" y="438" width="342" height="54" rx="6" fill="#b84a33" fill-opacity="0.18" stroke="#b84a33" stroke-opacity="0.7"/>
+    <use data-icon="chunk-filled/triangle-exclamation" x="114" y="450" width="28" height="28" fill="#e08a4b"/>
+    <text x="154" y="473" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#f3ead2">风险达到 80，石窟强制进入危机结局。</text>
+  </g>
+  <g id="hud-panel">
+    <rect x="560" y="172" width="656" height="420" rx="8" fill="#12110d" fill-opacity="0.68" stroke="#2fb8a6" stroke-opacity="0.55"/>
+    <text x="596" y="218" font-family="Consolas, monospace" font-size="16" fill="#2fb8a6">LIVE CONSERVATION DASHBOARD</text>
+    <g id="meter-reputation">
+      <text x="596" y="272" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="22" font-weight="bold" fill="#f3ead2">声誉</text>
+      <rect x="704" y="254" width="420" height="18" rx="4" fill="#3d3322"/>
+      <rect x="704" y="254" width="252" height="18" rx="4" fill="#d7bd73"/>
+      <text x="1148" y="271" font-family="Consolas, monospace" font-size="16" fill="#c8b98a">60</text>
+    </g>
+    <g id="meter-risk">
+      <text x="596" y="342" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="22" font-weight="bold" fill="#f3ead2">风险</text>
+      <rect x="704" y="324" width="420" height="18" rx="4" fill="#3d3322"/>
+      <rect x="704" y="324" width="315" height="18" rx="4" fill="#b84a33"/>
+      <line x1="1040" y1="316" x2="1040" y2="352" stroke="#e08a4b" stroke-width="2"/>
+      <text x="1148" y="341" font-family="Consolas, monospace" font-size="16" fill="#e08a4b">75</text>
+    </g>
+    <g id="meter-evidence">
+      <text x="596" y="412" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="22" font-weight="bold" fill="#f3ead2">证据</text>
+      <rect x="704" y="394" width="420" height="18" rx="4" fill="#3d3322"/>
+      <rect x="704" y="394" width="210" height="18" rx="4" fill="#2fb8a6"/>
+      <text x="1148" y="411" font-family="Consolas, monospace" font-size="16" fill="#c8b98a">50</text>
+    </g>
+    <g id="meter-budget">
+      <text x="596" y="482" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="22" font-weight="bold" fill="#f3ead2">预算</text>
+      <rect x="704" y="464" width="420" height="18" rx="4" fill="#3d3322"/>
+      <rect x="704" y="464" width="126" height="18" rx="4" fill="#d7bd73"/>
+      <text x="1148" y="481" font-family="Consolas, monospace" font-size="16" fill="#c8b98a">30</text>
+    </g>
+    <g id="conversion-note">
+      <line x1="596" y1="526" x2="1180" y2="526" stroke="#5c4b2c"/>
+      <text x="596" y="558" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#c8b98a">属性转化：用声誉换预算、用证据压风险，所有转化都会写入最终报告。</text>
+    </g>
+  </g>
+  <g id="footer">
+    <text x="64" y="682" font-family="Consolas, monospace" font-size="12" fill="#8a7a55">REPUTATION / RISK / EVIDENCE / BUDGET</text>
+    <text x="1190" y="682" font-family="Consolas, monospace" font-size="12" fill="#8a7a55">06</text>
+  </g>
+</svg>

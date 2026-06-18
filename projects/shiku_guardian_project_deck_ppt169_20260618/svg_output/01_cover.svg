@@ -1,0 +1,28 @@
+﻿<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="coverScrim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#12110d" stop-opacity="0.10"/>
+      <stop offset="58%" stop-color="#12110d" stop-opacity="0.48"/>
+      <stop offset="100%" stop-color="#12110d" stop-opacity="0.86"/>
+    </linearGradient>
+    <radialGradient id="titleGlow" cx="50%" cy="37%" r="58%">
+      <stop offset="0%" stop-color="#d7bd73" stop-opacity="0.30"/>
+      <stop offset="62%" stop-color="#d7bd73" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#12110d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g id="background">
+    <rect x="0" y="0" width="1280" height="720" fill="#12110d"/>
+    <image href="../images/cover_key_art.png" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
+    <rect x="0" y="0" width="1280" height="720" fill="url(#coverScrim)"/>
+    <rect x="0" y="0" width="1280" height="720" fill="url(#titleGlow)"/>
+  </g>
+  <g id="title-spacer">
+    <rect x="284" y="54" width="712" height="188" rx="8" fill="#12110d" fill-opacity="0.04"/>
+  </g>
+  <g id="footer">
+    <use data-icon="chunk-filled/shield" x="78" y="620" width="30" height="30" fill="#2fb8a6"/>
+    <text x="122" y="643" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="20" fill="#f3ead2">数字文物保护模拟游戏 · Project Deck</text>
+    <text x="1160" y="646" font-family="Consolas, monospace" font-size="13" fill="#c8b98a">2026</text>
+  </g>
+</svg>

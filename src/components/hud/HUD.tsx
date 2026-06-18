@@ -104,7 +104,7 @@ export function HUD({ stats, completedTasks, activeTaskId }: HUDProps) {
       setObjective(obj)
     })
     // 挂载时请求当前目标（修复从转化面板返回后目标栏丢失）
-    bus.emit('objective:request', undefined as any)
+    bus.emit('objective:request')
     return () => { unsub(); unsub2() }
   }, [])
 
@@ -217,7 +217,7 @@ export function HUD({ stats, completedTasks, activeTaskId }: HUDProps) {
       <motion.button
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
-        onClick={() => bus.emit('open:conversion', undefined as any)}
+        onClick={() => bus.emit('open:conversion')}
         style={{
           pointerEvents: 'all',
           background: 'rgba(215,189,115,0.08)',

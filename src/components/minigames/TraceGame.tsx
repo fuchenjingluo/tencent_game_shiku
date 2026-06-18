@@ -81,7 +81,7 @@ export function TraceGame({ difficulty, prompt, onComplete }: TraceGameProps) {
   const collectiblesRef = useRef<{ pos: Vec2; collected: boolean }[]>([])
   const tracedRef = useRef<Vec2[]>([])
   const isDrawing = useRef(false)
-  const timerRef = useRef<ReturnType<typeof setInterval>>()
+  const timerRef = useRef<number | undefined>(undefined)
   const totalTime = difficulty === 1 ? 10 : difficulty === 2 ? 8 : 6
 
   // 初始化画布

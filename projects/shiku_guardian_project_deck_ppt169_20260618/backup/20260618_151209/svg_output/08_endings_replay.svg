@@ -1,0 +1,64 @@
+﻿<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="centerLight" cx="50%" cy="50%" r="58%">
+      <stop offset="0%" stop-color="#3d3322" stop-opacity="0.68"/>
+      <stop offset="100%" stop-color="#12110d" stop-opacity="0.86"/>
+    </radialGradient>
+  </defs>
+  <g id="background">
+    <rect x="0" y="0" width="1280" height="720" fill="#12110d"/>
+    <image href="../images/bg_digital_archive.png" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
+    <rect x="0" y="0" width="1280" height="720" fill="url(#centerLight)"/>
+  </g>
+  <g id="header">
+    <text x="64" y="66" font-family="Consolas, monospace" font-size="14" fill="#2fb8a6">08 / ENDINGS AND REPLAY</text>
+    <text x="64" y="116" font-family="KaiTi, Georgia, serif" font-size="40" font-weight="bold" fill="#d7bd73">六种结局，让玩家看见自己的因果链</text>
+  </g>
+  <g id="ending-map">
+    <line x1="640" y1="362" x2="356" y2="260" stroke="#5c4b2c" stroke-width="2"/>
+    <line x1="640" y1="362" x2="640" y2="220" stroke="#5c4b2c" stroke-width="2"/>
+    <line x1="640" y1="362" x2="924" y2="260" stroke="#5c4b2c" stroke-width="2"/>
+    <line x1="640" y1="362" x2="356" y2="492" stroke="#5c4b2c" stroke-width="2"/>
+    <line x1="640" y1="362" x2="640" y2="532" stroke="#5c4b2c" stroke-width="2"/>
+    <line x1="640" y1="362" x2="924" y2="492" stroke="#5c4b2c" stroke-width="2"/>
+    <circle cx="640" cy="362" r="92" fill="#1b1811" stroke="#d7bd73" stroke-width="2"/>
+    <use data-icon="chunk-filled/clipboard" x="616" y="308" width="48" height="48" fill="#d7bd73"/>
+    <text x="640" y="385" text-anchor="middle" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="24" font-weight="bold" fill="#f3ead2">结局报告</text>
+    <text x="640" y="416" text-anchor="middle" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="16" fill="#c8b98a">属性 + flag + 路线回溯</text>
+  </g>
+  <g id="ending-nodes">
+    <g id="node-guardian">
+      <circle cx="356" cy="260" r="45" fill="#1b1811" stroke="#d7bd73" stroke-width="2"/>
+      <text x="356" y="267" text-anchor="middle" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="17" fill="#f3ead2">守护者</text>
+    </g>
+    <g id="node-reformer">
+      <circle cx="640" cy="220" r="45" fill="#1b1811" stroke="#b84a33" stroke-width="2"/>
+      <text x="640" y="227" text-anchor="middle" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="17" fill="#f3ead2">改革者</text>
+    </g>
+    <g id="node-maintainer">
+      <circle cx="924" cy="260" r="45" fill="#1b1811" stroke="#5c4b2c" stroke-width="2"/>
+      <text x="924" y="267" text-anchor="middle" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="17" fill="#f3ead2">维持者</text>
+    </g>
+    <g id="node-archivist">
+      <circle cx="356" cy="492" r="45" fill="#1b1811" stroke="#2fb8a6" stroke-width="2"/>
+      <text x="356" y="499" text-anchor="middle" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="17" fill="#f3ead2">档案专家</text>
+    </g>
+    <g id="node-whistle">
+      <circle cx="640" cy="532" r="45" fill="#1b1811" stroke="#e08a4b" stroke-width="2"/>
+      <text x="640" y="539" text-anchor="middle" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="17" fill="#f3ead2">吹哨人</text>
+    </g>
+    <g id="node-tragedy">
+      <circle cx="924" cy="492" r="45" fill="#1b1811" stroke="#b84a33" stroke-width="2"/>
+      <text x="924" y="499" text-anchor="middle" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="17" fill="#f3ead2">石窟之殇</text>
+    </g>
+  </g>
+  <g id="replay-strip">
+    <rect x="178" y="604" width="924" height="54" rx="8" fill="#1b1811" fill-opacity="0.80" stroke="#5c4b2c"/>
+    <use data-icon="chunk-filled/star" x="210" y="616" width="30" height="30" fill="#d7bd73"/>
+    <text x="258" y="639" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="20" fill="#f3ead2">18 个成就 · 挑战模式 · NG+ 路线加成，鼓励玩家尝试完全不同的保护风格。</text>
+  </g>
+  <g id="footer">
+    <text x="64" y="682" font-family="Consolas, monospace" font-size="12" fill="#8a7a55">ENDING REPORT AS CAUSAL MEMORY</text>
+    <text x="1190" y="682" font-family="Consolas, monospace" font-size="12" fill="#8a7a55">08</text>
+  </g>
+</svg>

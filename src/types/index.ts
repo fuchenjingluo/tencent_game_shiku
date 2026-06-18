@@ -295,7 +295,9 @@ export interface BusEvents {
   'tourist:event-resolve': { eventId: string; success: boolean; choiceId?: string; choiceDeltas?: Partial<Record<string, number>> }
   'tourist:density-changed': number
   'sidequest:offer': { questId: string; title: string; briefing: string; npcName: string }
-  'sidequest:complete': { questId: string }
+  'sidequest:complete': { questId: string },
+  'game:force-over': void,
+  'ui:choice-cancelled': void,
 }
 
 export type BusEventKey = keyof BusEvents

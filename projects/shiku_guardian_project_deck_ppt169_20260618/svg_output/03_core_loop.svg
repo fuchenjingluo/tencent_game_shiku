@@ -1,0 +1,55 @@
+﻿<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrowGold" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#d7bd73"/>
+    </marker>
+    <linearGradient id="pageScrim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#12110d" stop-opacity="0.88"/>
+      <stop offset="100%" stop-color="#12110d" stop-opacity="0.70"/>
+    </linearGradient>
+  </defs>
+  <g id="background">
+    <rect x="0" y="0" width="1280" height="720" fill="#12110d"/>
+    <image href="../images/bg_cave_mural.png" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
+    <rect x="0" y="0" width="1280" height="720" fill="url(#pageScrim)"/>
+  </g>
+  <g id="header">
+    <text x="64" y="70" font-family="Consolas, monospace" font-size="14" fill="#2fb8a6">03 / CORE LOOP</text>
+    <text x="64" y="120" font-family="KaiTi, Georgia, serif" font-size="42" font-weight="bold" fill="#d7bd73">核心循环：探索 → 决策 → 操作 → 回响</text>
+  </g>
+  <g id="loop-diagram">
+    <circle cx="640" cy="390" r="122" fill="#1b1811" stroke="#5c4b2c" stroke-width="2"/>
+    <circle cx="640" cy="390" r="86" fill="#12110d" stroke="#2fb8a6" stroke-width="2" stroke-opacity="0.6"/>
+    <use data-icon="chunk-filled/route" x="613" y="340" width="54" height="54" fill="#d7bd73"/>
+    <text x="640" y="420" text-anchor="middle" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="26" font-weight="bold" fill="#f3ead2">现场任务</text>
+    <text x="640" y="450" text-anchor="middle" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="15" fill="#c8b98a">监测点驱动玩法</text>
+    <path d="M 515 252 C 425 285, 410 390, 486 466" fill="none" stroke="#d7bd73" stroke-width="3" stroke-opacity="0.8" marker-end="url(#arrowGold)"/>
+    <path d="M 565 535 C 635 604, 760 572, 793 482" fill="none" stroke="#d7bd73" stroke-width="3" stroke-opacity="0.8" marker-end="url(#arrowGold)"/>
+    <path d="M 808 350 C 800 242, 680 196, 590 232" fill="none" stroke="#d7bd73" stroke-width="3" stroke-opacity="0.8" marker-end="url(#arrowGold)"/>
+    <path d="M 785 472 C 900 452, 906 300, 804 252" fill="none" stroke="#2fb8a6" stroke-width="2" stroke-opacity="0.7" stroke-dasharray="8,4"/>
+  </g>
+  <g id="step-explore">
+    <rect x="136" y="210" width="290" height="118" rx="8" fill="#1b1811" fill-opacity="0.88" stroke="#5c4b2c"/>
+    <text x="166" y="248" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="24" font-weight="bold" fill="#f3ead2">01 探索</text>
+    <text x="166" y="282" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#c8b98a">俯视角移动，寻找监测点、设备与隐藏文件。</text>
+  </g>
+  <g id="step-decide">
+    <rect x="854" y="210" width="290" height="118" rx="8" fill="#1b1811" fill-opacity="0.88" stroke="#5c4b2c"/>
+    <text x="884" y="248" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="24" font-weight="bold" fill="#f3ead2">02 决策</text>
+    <text x="884" y="282" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#c8b98a">专业、妥协、激进三条路径，结果不等价。</text>
+  </g>
+  <g id="step-operate">
+    <rect x="854" y="476" width="290" height="118" rx="8" fill="#1b1811" fill-opacity="0.88" stroke="#5c4b2c"/>
+    <text x="884" y="514" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="24" font-weight="bold" fill="#f3ead2">03 操作</text>
+    <text x="884" y="548" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#c8b98a">小游戏不是打断，而是具体文保动作。</text>
+  </g>
+  <g id="step-feedback">
+    <rect x="136" y="476" width="290" height="118" rx="8" fill="#1b1811" fill-opacity="0.88" stroke="#5c4b2c"/>
+    <text x="166" y="514" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="24" font-weight="bold" fill="#f3ead2">04 回响</text>
+    <text x="166" y="548" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#c8b98a">四项属性变化，关键 flag 写入因果链。</text>
+  </g>
+  <g id="footer">
+    <text x="64" y="682" font-family="Consolas, monospace" font-size="12" fill="#8a7a55">EXPLORE / DECIDE / PLAY / CONSEQUENCE</text>
+    <text x="1190" y="682" font-family="Consolas, monospace" font-size="12" fill="#8a7a55">03</text>
+  </g>
+</svg>

@@ -164,7 +164,7 @@ export function PuzzleGame({ difficulty, prompt, onComplete }: PuzzleGameProps) 
   }, [started])
 
   // ── 从修复区槽位拖拽（退回盒子） ──
-  const handleFrameDragStart = useCallback((e: React.DragEvent, row: number, col: number) => {
+  const handleFrameDragStart = useCallback((e: any, row: number, col: number) => {
     ensureStarted()
     if (doneRef.current) { e.preventDefault(); return }
     const key = `${row}-${col}`

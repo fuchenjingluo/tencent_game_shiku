@@ -1,0 +1,61 @@
+﻿<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="darkWash" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#12110d" stop-opacity="0.94"/>
+      <stop offset="100%" stop-color="#12110d" stop-opacity="0.76"/>
+    </linearGradient>
+  </defs>
+  <g id="background">
+    <rect x="0" y="0" width="1280" height="720" fill="#12110d"/>
+    <image href="../images/bg_cave_mural.png" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
+    <rect x="0" y="0" width="1280" height="720" fill="url(#darkWash)"/>
+  </g>
+  <g id="header">
+    <text x="64" y="66" font-family="Consolas, monospace" font-size="14" fill="#2fb8a6">04 / DECISION DESIGN</text>
+    <text x="64" y="116" font-family="KaiTi, Georgia, serif" font-size="40" font-weight="bold" fill="#d7bd73">三选一不是正确答案，而是价值取舍</text>
+    <text x="68" y="154" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="20" fill="#c8b98a">每个任务节点都把“保护优先”和“现实约束”同时摆到玩家面前。</text>
+  </g>
+  <g id="card-professional">
+    <rect x="72" y="224" width="344" height="342" rx="8" fill="#1b1811" fill-opacity="0.86" stroke="#5c4b2c"/>
+    <rect x="72" y="224" width="344" height="8" rx="4" fill="#d7bd73"/>
+    <use data-icon="chunk-filled/shield" x="104" y="260" width="44" height="44" fill="#d7bd73"/>
+    <text x="164" y="290" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="27" font-weight="bold" fill="#f3ead2">专业方案</text>
+    <text x="104" y="350" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="20" fill="#c8b98a">
+      <tspan x="104" dy="0">花预算，换取更低风险</tspan>
+      <tspan x="104" dy="34">提升声誉与证据质量</tspan>
+      <tspan x="104" dy="34">适合稳健保护路线</tspan>
+    </text>
+    <line x1="104" y1="480" x2="384" y2="480" stroke="#d7bd73" stroke-width="2" stroke-opacity="0.55"/>
+    <text x="104" y="522" font-family="Consolas, monospace" font-size="16" fill="#d7bd73">COST ↑  RISK ↓  TRUST ↑</text>
+  </g>
+  <g id="card-compromise">
+    <rect x="468" y="224" width="344" height="342" rx="8" fill="#1b1811" fill-opacity="0.86" stroke="#5c4b2c"/>
+    <rect x="468" y="224" width="344" height="8" rx="4" fill="#5c4b2c"/>
+    <use data-icon="chunk-filled/sliders" x="500" y="260" width="44" height="44" fill="#c8b98a"/>
+    <text x="560" y="290" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="27" font-weight="bold" fill="#f3ead2">妥协方案</text>
+    <text x="500" y="350" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="20" fill="#c8b98a">
+      <tspan x="500" dy="0">省资源，维持现场局面</tspan>
+      <tspan x="500" dy="34">可能留下长期隐患</tspan>
+      <tspan x="500" dy="34">适合低预算求生路线</tspan>
+    </text>
+    <line x1="500" y1="480" x2="780" y2="480" stroke="#5c4b2c" stroke-width="2"/>
+    <text x="500" y="522" font-family="Consolas, monospace" font-size="16" fill="#c8b98a">COST ↓  RISK ?  FUTURE DEBT</text>
+  </g>
+  <g id="card-risky">
+    <rect x="864" y="224" width="344" height="342" rx="8" fill="#1b1811" fill-opacity="0.86" stroke="#5c4b2c"/>
+    <rect x="864" y="224" width="344" height="8" rx="4" fill="#b84a33"/>
+    <use data-icon="chunk-filled/bolt" x="896" y="260" width="44" height="44" fill="#b84a33"/>
+    <text x="956" y="290" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="27" font-weight="bold" fill="#f3ead2">激进方案</text>
+    <text x="896" y="350" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="20" fill="#c8b98a">
+      <tspan x="896" dy="0">见效快，短期压低风险</tspan>
+      <tspan x="896" dy="34">代价高，可能触发反噬</tspan>
+      <tspan x="896" dy="34">适合高压搏命路线</tspan>
+    </text>
+    <line x1="896" y1="480" x2="1176" y2="480" stroke="#b84a33" stroke-width="2" stroke-opacity="0.65"/>
+    <text x="896" y="522" font-family="Consolas, monospace" font-size="16" fill="#e08a4b">FAST ↓  REPUTATION ?  BACKFIRE</text>
+  </g>
+  <g id="footer">
+    <text x="64" y="682" font-family="Consolas, monospace" font-size="12" fill="#8a7a55">NO PERFECT ANSWER, ONLY TRACEABLE CONSEQUENCES</text>
+    <text x="1190" y="682" font-family="Consolas, monospace" font-size="12" fill="#8a7a55">04</text>
+  </g>
+</svg>

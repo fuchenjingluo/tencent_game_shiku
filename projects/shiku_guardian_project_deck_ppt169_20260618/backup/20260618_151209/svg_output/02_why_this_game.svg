@@ -1,0 +1,47 @@
+﻿<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="leftScrim" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#12110d" stop-opacity="0.94"/>
+      <stop offset="56%" stop-color="#12110d" stop-opacity="0.72"/>
+      <stop offset="100%" stop-color="#12110d" stop-opacity="0.08"/>
+    </linearGradient>
+  </defs>
+  <g id="background">
+    <rect x="0" y="0" width="1280" height="720" fill="#12110d"/>
+    <image href="../images/bg_cave_mural.png" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
+    <rect x="0" y="0" width="1280" height="720" fill="url(#leftScrim)"/>
+  </g>
+  <g id="header">
+    <text x="64" y="70" font-family="Consolas, monospace" font-size="14" fill="#2fb8a6">02 / PREMISE</text>
+    <line x1="64" y1="90" x2="284" y2="90" stroke="#2fb8a6" stroke-width="2" stroke-opacity="0.7"/>
+  </g>
+  <g id="main-message">
+    <text x="64" y="166" font-family="KaiTi, Georgia, serif" font-size="48" font-weight="bold" fill="#d7bd73">千年遗产，</text>
+    <text x="64" y="224" font-family="KaiTi, Georgia, serif" font-size="48" font-weight="bold" fill="#d7bd73">没有重来的机会</text>
+    <text x="68" y="280" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="22" fill="#f3ead2">
+      <tspan x="68" dy="0">玩家扮演数字文物保护管理员，</tspan>
+      <tspan x="68" dy="34">在真实约束里处理石窟日常巡检与危机处置。</tspan>
+    </text>
+  </g>
+  <g id="tension-list">
+    <g id="tension-1">
+      <circle cx="83" cy="375" r="7" fill="#b84a33"/>
+      <text x="108" y="383" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="22" font-weight="bold" fill="#f3ead2">壁画病害</text>
+      <text x="108" y="414" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#c8b98a">起甲、剥落、潮湿、盐析，风险不会等待。</text>
+    </g>
+    <g id="tension-2">
+      <circle cx="83" cy="472" r="7" fill="#e08a4b"/>
+      <text x="108" y="480" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="22" font-weight="bold" fill="#f3ead2">现实约束</text>
+      <text x="108" y="511" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#c8b98a">预算有限，时间紧迫，专业方案未必随时可选。</text>
+    </g>
+    <g id="tension-3">
+      <circle cx="83" cy="569" r="7" fill="#2fb8a6"/>
+      <text x="108" y="577" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="22" font-weight="bold" fill="#f3ead2">价值选择</text>
+      <text x="108" y="608" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#c8b98a">保护优先与现场妥协之间，每一步都留下后果。</text>
+    </g>
+  </g>
+  <g id="footer">
+    <text x="64" y="682" font-family="Consolas, monospace" font-size="12" fill="#8a7a55">SHIKU GUARDIAN</text>
+    <text x="1190" y="682" font-family="Consolas, monospace" font-size="12" fill="#8a7a55">02</text>
+  </g>
+</svg>

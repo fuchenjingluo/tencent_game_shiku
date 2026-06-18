@@ -331,11 +331,11 @@ export default function App() {
           return 'barely_holding'
         })()
         const runMeta: AchievementRunMeta = {
+          ...runMetaRef.current,
           stats: finalS,
           flags: flags ?? {},
           ending,
           playTimeMs: Date.now() - runStartTime.current,
-          ...runMetaRef.current,
         }
         const unlocked = detectAchievements(runMeta, newCount)
         if (unlocked.length > 0) {

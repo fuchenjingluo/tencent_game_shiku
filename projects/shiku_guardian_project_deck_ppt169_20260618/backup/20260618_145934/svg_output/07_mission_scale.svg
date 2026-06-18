@@ -1,0 +1,58 @@
+﻿<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="archiveScrim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#12110d" stop-opacity="0.88"/>
+      <stop offset="100%" stop-color="#12110d" stop-opacity="0.76"/>
+    </linearGradient>
+  </defs>
+  <g id="background">
+    <rect x="0" y="0" width="1280" height="720" fill="#12110d"/>
+    <image href="../images/bg_digital_archive.png" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
+    <rect x="0" y="0" width="1280" height="720" fill="url(#archiveScrim)"/>
+  </g>
+  <g id="header">
+    <text x="64" y="66" font-family="Consolas, monospace" font-size="14" fill="#2fb8a6">07 / CONTENT SCALE</text>
+    <text x="64" y="116" font-family="KaiTi, Georgia, serif" font-size="40" font-weight="bold" fill="#d7bd73">任务规模与因果密度</text>
+  </g>
+  <g id="equation">
+    <rect x="88" y="168" width="1104" height="136" rx="8" fill="#1b1811" fill-opacity="0.80" stroke="#2fb8a6" stroke-opacity="0.55"/>
+    <text x="640" y="250" text-anchor="middle" font-family="Consolas, monospace" font-size="44" font-weight="bold" fill="#f3ead2">5 × 2 × 3 = <tspan fill="#d7bd73">30</tspan></text>
+    <text x="640" y="282" text-anchor="middle" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#c8b98a">5 项任务 × 2 个步骤 × 3 种选择 = 30 个可追溯决策点</text>
+  </g>
+  <g id="mission-line">
+    <line x1="146" y1="432" x2="1134" y2="432" stroke="#5c4b2c" stroke-width="3"/>
+    <g id="task-1">
+      <circle cx="166" cy="432" r="30" fill="#1b1811" stroke="#d7bd73" stroke-width="2"/>
+      <text x="166" y="440" text-anchor="middle" font-family="Consolas, monospace" font-size="20" fill="#d7bd73">01</text>
+      <text x="166" y="506" text-anchor="middle" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#f3ead2">壁画起甲</text>
+    </g>
+    <g id="task-2">
+      <circle cx="402" cy="432" r="30" fill="#1b1811" stroke="#2fb8a6" stroke-width="2"/>
+      <text x="402" y="440" text-anchor="middle" font-family="Consolas, monospace" font-size="20" fill="#2fb8a6">02</text>
+      <text x="402" y="506" text-anchor="middle" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#f3ead2">暗窟渗水</text>
+    </g>
+    <g id="task-3">
+      <circle cx="638" cy="432" r="30" fill="#1b1811" stroke="#d7bd73" stroke-width="2"/>
+      <text x="638" y="440" text-anchor="middle" font-family="Consolas, monospace" font-size="20" fill="#d7bd73">03</text>
+      <text x="638" y="506" text-anchor="middle" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#f3ead2">游客超载</text>
+    </g>
+    <g id="task-4">
+      <circle cx="874" cy="432" r="30" fill="#1b1811" stroke="#e08a4b" stroke-width="2"/>
+      <text x="874" y="440" text-anchor="middle" font-family="Consolas, monospace" font-size="20" fill="#e08a4b">04</text>
+      <text x="874" y="506" text-anchor="middle" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#f3ead2">供电过载</text>
+    </g>
+    <g id="task-5">
+      <circle cx="1110" cy="432" r="30" fill="#1b1811" stroke="#b84a33" stroke-width="2"/>
+      <text x="1110" y="440" text-anchor="middle" font-family="Consolas, monospace" font-size="20" fill="#e08a4b">05</text>
+      <text x="1110" y="506" text-anchor="middle" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#f3ead2">档案提交</text>
+    </g>
+  </g>
+  <g id="bottom-insight">
+    <use data-icon="chunk-filled/archive-box" x="172" y="590" width="34" height="34" fill="#2fb8a6"/>
+    <text x="222" y="615" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="22" fill="#f3ead2">每个关键选择都会写入最终报告，形成可回溯的因果链。</text>
+  </g>
+  <g id="footer">
+    <text x="64" y="682" font-family="Consolas, monospace" font-size="12" fill="#8a7a55">MISSION STRUCTURE AND CAUSAL FLAGS</text>
+    <text x="1190" y="682" font-family="Consolas, monospace" font-size="12" fill="#8a7a55">07</text>
+  </g>
+</svg>

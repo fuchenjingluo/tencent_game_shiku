@@ -65,6 +65,7 @@ export function ConversionPanel({ stats, onStatsChange, onClose }: ConversionPan
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        onClick={onClose}
         style={{
           position: 'absolute',
           inset: 0,
@@ -75,7 +76,6 @@ export function ConversionPanel({ stats, onStatsChange, onClose }: ConversionPan
           background: 'rgba(12,11,9,0.8)',
           backdropFilter: 'blur(4px)',
           pointerEvents: 'all',
-          onClick: onClose,
         }}
       >
         <motion.div

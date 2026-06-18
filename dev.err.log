@@ -1,0 +1,188 @@
+[2m09:18:18[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mThe "??" operator here will always return the left operand[33m
+43 |      } catch (err) {
+44 |        console.error('[BootScene] 纹理生成失败:', err)
+45 |        if (sceneBootGen === (window as any).getBootGeneration?.() ?? 0) {
+   |                                                                   ^
+46 |          reportBootProgress(100, '纹理生成出错，使用回退模式…')
+47 |        }
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/lzh/Desktop/666/src/phaser/scenes/BootScene.ts[39m
+[2m10:04:01[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Transform failed with 1 error:
+C:/Users/lzh/Desktop/666/src/phaser/TouristNPC.ts:382:8: ERROR: Cannot use "continue" here:
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/lzh/Desktop/666/src/phaser/TouristNPC.ts[39m:382:8
+[33m  
+  [33mCannot use "continue" here:[33m
+  380|          t.waypoints = [this.pickRandomWaypoint(t.sprite.x, t.sprite.y)]
+  381|          t.wpIndex = 0
+  382|          continue
+     |          ^
+  383|        }
+  384|  
+  [39m
+[2m10:04:01[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+C:/Users/lzh/Desktop/666/src/phaser/TouristNPC.ts:382:8: ERROR: Cannot use "continue" here:[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/lzh/Desktop/666/src/phaser/TouristNPC.ts[39m:382:8
+[33m  
+  [33mCannot use "continue" here:[33m
+  380|          t.waypoints = [this.pickRandomWaypoint(t.sprite.x, t.sprite.y)]
+  381|          t.wpIndex = 0
+  382|          continue
+     |          ^
+  383|        }
+  384|  
+  [39m
+      at failureErrorWithLog (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:1467:15)
+      at C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:736:50
+      at responseCallbacks.<computed> (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:603:9)
+      at handleIncomingPacket (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:658:12)
+      at Socket.readFromStdout (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:581:7)
+      at Socket.emit (node:events:519:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[2m10:04:01[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+C:/Users/lzh/Desktop/666/src/phaser/TouristNPC.ts:382:8: ERROR: Cannot use "continue" here:[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/lzh/Desktop/666/src/phaser/TouristNPC.ts[39m:382:8
+[33m  
+  [33mCannot use "continue" here:[33m
+  380|          t.waypoints = [this.pickRandomWaypoint(t.sprite.x, t.sprite.y)]
+  381|          t.wpIndex = 0
+  382|          continue
+     |          ^
+  383|        }
+  384|  
+  [39m
+      at failureErrorWithLog (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:1467:15)
+      at C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:736:50
+      at responseCallbacks.<computed> (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:603:9)
+      at handleIncomingPacket (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:658:12)
+      at Socket.readFromStdout (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:581:7)
+      at Socket.emit (node:events:519:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[2m10:04:55[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+C:/Users/lzh/Desktop/666/src/phaser/TouristNPC.ts:382:8: ERROR: Cannot use "continue" here:[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/lzh/Desktop/666/src/phaser/TouristNPC.ts[39m:382:8
+[33m  
+  [33mCannot use "continue" here:[33m
+  380|          t.waypoints = [this.pickRandomWaypoint(t.sprite.x, t.sprite.y)]
+  381|          t.wpIndex = 0
+  382|          continue
+     |          ^
+  383|        }
+  384|  
+  [39m
+      at failureErrorWithLog (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:1467:15)
+      at C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:736:50
+      at responseCallbacks.<computed> (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:603:9)
+      at handleIncomingPacket (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:658:12)
+      at Socket.readFromStdout (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:581:7)
+      at Socket.emit (node:events:519:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[2m10:05:09[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+C:/Users/lzh/Desktop/666/src/phaser/TouristNPC.ts:382:8: ERROR: Cannot use "continue" here:[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/lzh/Desktop/666/src/phaser/TouristNPC.ts[39m:382:8
+[33m  
+  [33mCannot use "continue" here:[33m
+  380|          t.waypoints = [this.pickRandomWaypoint(t.sprite.x, t.sprite.y)]
+  381|          t.wpIndex = 0
+  382|          continue
+     |          ^
+  383|        }
+  384|  
+  [39m
+      at failureErrorWithLog (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:1467:15)
+      at C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:736:50
+      at responseCallbacks.<computed> (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:603:9)
+      at handleIncomingPacket (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:658:12)
+      at Socket.readFromStdout (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:581:7)
+      at Socket.emit (node:events:519:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[2m10:05:16[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+C:/Users/lzh/Desktop/666/src/phaser/TouristNPC.ts:382:8: ERROR: Cannot use "continue" here:[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/lzh/Desktop/666/src/phaser/TouristNPC.ts[39m:382:8
+[33m  
+  [33mCannot use "continue" here:[33m
+  380|          t.waypoints = [this.pickRandomWaypoint(t.sprite.x, t.sprite.y)]
+  381|          t.wpIndex = 0
+  382|          continue
+     |          ^
+  383|        }
+  384|  
+  [39m
+      at failureErrorWithLog (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:1467:15)
+      at C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:736:50
+      at responseCallbacks.<computed> (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:603:9)
+      at handleIncomingPacket (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:658:12)
+      at Socket.readFromStdout (C:\Users\lzh\Desktop\666\node_modules\esbuild\lib\main.js:581:7)
+      at Socket.emit (node:events:519:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[2m15:23:52[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate "transition" attribute in JSX element[33m
+271|            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+272|            onClick={(e) => e.stopPropagation()}
+273|            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+   |            ^
+274|            style={{
+275|              width: 820,
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/lzh/Desktop/666/src/components/dialog/ChoicePanel.tsx[39m
+[2m16:38:38[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate "transition" attribute in JSX element[33m
+272|            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+273|            onClick={(e) => e.stopPropagation()}
+274|            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+   |            ^
+275|            style={{
+276|              width: 820,
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/lzh/Desktop/666/src/components/dialog/ChoicePanel.tsx[39m
+[2m19:04:57[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate "transition" attribute in JSX element[33m
+273|            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+274|            onClick={(e) => e.stopPropagation()}
+275|            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+   |            ^
+276|            style={{
+277|              width: 820,
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/lzh/Desktop/666/src/components/dialog/ChoicePanel.tsx[39m
+[2m13:06:54[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate "transition" attribute in JSX element[33m
+273|            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+274|            onClick={(e) => e.stopPropagation()}
+275|            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+   |            ^
+276|            style={{
+277|              width: 820,
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/lzh/Desktop/666/src/components/dialog/ChoicePanel.tsx[39m
+[2m13:06:54[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mThe "??" operator here will always return the left operand[33m
+43 |      } catch (err) {
+44 |        console.error('[BootScene] 纹理生成失败:', err)
+45 |        if (sceneBootGen === (window as any).getBootGeneration?.() ?? 0) {
+   |                                                                   ^
+46 |          reportBootProgress(100, '纹理生成出错，使用回退模式…')
+47 |        }
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/lzh/Desktop/666/src/phaser/scenes/BootScene.ts[39m

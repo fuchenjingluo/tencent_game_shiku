@@ -1,0 +1,5 @@
+No,Filename,Width,Height,AspectRatio,PixelAspectRatio,RatioSource,UsageCount,DisplayRatioVariants,AssetKind,SvgRenderable,PptxNativeSupported,SizeKB,Category,ImageArea_SxS,TextArea_SxS
+1,bg_cave_mural.png,1672,941,1.78,1.78,pixel,1,,bitmap,True,True,2049.1,Wide landscape,812x457,328x600
+2,bg_digital_archive.png,1672,941,1.78,1.78,pixel,1,,bitmap,True,True,1728.8,Wide landscape,812x457,328x600
+3,bg_infrared_scan.png,1672,941,1.78,1.78,pixel,1,,bitmap,True,True,1986.3,Wide landscape,812x457,328x600
+4,cover_key_art.png,1672,941,1.78,1.78,pixel,1,,bitmap,True,True,2326.5,Wide landscape,812x457,328x600

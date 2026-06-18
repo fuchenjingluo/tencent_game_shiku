@@ -1,0 +1,44 @@
+﻿<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrowTeal" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#2fb8a6"/>
+    </marker>
+    <linearGradient id="techScrim" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#12110d" stop-opacity="0.94"/>
+      <stop offset="100%" stop-color="#12110d" stop-opacity="0.70"/>
+    </linearGradient>
+  </defs>
+  <g id="background">
+    <rect x="0" y="0" width="1280" height="720" fill="#12110d"/>
+    <image href="../images/bg_digital_archive.png" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
+    <rect x="0" y="0" width="1280" height="720" fill="url(#techScrim)"/>
+  </g>
+  <g id="header">
+    <text x="64" y="66" font-family="Consolas, monospace" font-size="14" fill="#2fb8a6">09 / IMPLEMENTATION</text>
+    <text x="64" y="116" font-family="KaiTi, Georgia, serif" font-size="40" font-weight="bold" fill="#d7bd73">技术实现：React UI + Phaser 世界 + TypeScript 数据层</text>
+  </g>
+  <g id="architecture">
+    <rect x="106" y="190" width="1068" height="92" rx="8" fill="#1b1811" fill-opacity="0.86" stroke="#d7bd73" stroke-opacity="0.65"/>
+    <use data-icon="chunk-filled/code" x="138" y="216" width="40" height="40" fill="#d7bd73"/>
+    <text x="202" y="230" font-family="Consolas, monospace" font-size="24" font-weight="bold" fill="#f3ead2">React</text>
+    <text x="202" y="258" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#c8b98a">HUD、对话、选择面板、成就、最终报告</text>
+    <rect x="106" y="326" width="1068" height="92" rx="8" fill="#1b1811" fill-opacity="0.86" stroke="#2fb8a6" stroke-opacity="0.65"/>
+    <use data-icon="chunk-filled/target" x="138" y="352" width="40" height="40" fill="#2fb8a6"/>
+    <text x="202" y="366" font-family="Consolas, monospace" font-size="24" font-weight="bold" fill="#f3ead2">Phaser 4</text>
+    <text x="202" y="394" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#c8b98a">场景、角色移动、交互点、小游戏、地图与反馈</text>
+    <rect x="106" y="462" width="1068" height="92" rx="8" fill="#1b1811" fill-opacity="0.86" stroke="#5c4b2c"/>
+    <use data-icon="chunk-filled/database" x="138" y="488" width="40" height="40" fill="#c8b98a"/>
+    <text x="202" y="502" font-family="Consolas, monospace" font-size="24" font-weight="bold" fill="#f3ead2">TypeScript Data Layer</text>
+    <text x="202" y="530" font-family='"Microsoft YaHei", Arial, sans-serif' font-size="18" fill="#c8b98a">任务数据、属性变化、结局判定、因果 flag、存档状态</text>
+    <line x1="640" y1="282" x2="640" y2="326" stroke="#2fb8a6" stroke-width="3" marker-end="url(#arrowTeal)"/>
+    <line x1="640" y1="418" x2="640" y2="462" stroke="#2fb8a6" stroke-width="3" marker-end="url(#arrowTeal)"/>
+  </g>
+  <g id="stack-footer">
+    <rect x="272" y="596" width="736" height="48" rx="8" fill="#12110d" fill-opacity="0.70" stroke="#5c4b2c"/>
+    <text x="640" y="626" text-anchor="middle" font-family="Consolas, monospace" font-size="18" fill="#d7bd73">Vite · React 19 · Phaser 4 · TypeScript · Vitest-ready</text>
+  </g>
+  <g id="footer">
+    <text x="64" y="682" font-family="Consolas, monospace" font-size="12" fill="#8a7a55">CLEAR BOUNDARIES BETWEEN WORLD, UI, AND DATA</text>
+    <text x="1190" y="682" font-family="Consolas, monospace" font-size="12" fill="#8a7a55">09</text>
+  </g>
+</svg>

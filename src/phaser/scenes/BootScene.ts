@@ -42,7 +42,8 @@ export class BootScene extends Phaser.Scene {
       await generateTexturesAsync(this, reportBootProgress, sceneBootGen)
     } catch (err) {
       console.error('[BootScene] 纹理生成失败:', err)
-      if (sceneBootGen === (window as any).getBootGeneration?.() ?? 0) {
+      const currentGen = (window as any).getBootGeneration?.()
+      if (sceneBootGen === (currentGen ?? 0)) {
         reportBootProgress(100, '纹理生成出错，使用回退模式…')
       }
     }

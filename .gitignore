@@ -2,3 +2,9 @@ node_modules/
 dist/
 .workbuddy/
 *.save
+
+# Tencent Cloud EdgeOne
+.env
+.edgeone/*
+.tef_dist/*
+  
